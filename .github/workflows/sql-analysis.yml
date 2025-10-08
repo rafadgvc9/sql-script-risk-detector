@@ -28,21 +28,9 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r requirements.txt
         
-    - name: find modified sql files
-      id: find-sql
+    - name: analyze sql scripts
       run: |
-        sql_files=$(find . -name "*.sql" -type f | head -10)
-        if [ -z "$sql_files" ]; then
-          echo "No se encontraron archivos SQL"
-          echo "has_sql=false" >> $GITHUB_OUTPUT
-        else
-          echo "Archivos SQL encontrados:"
-          echo "$sql_files"
-          echo "has_sql=true" >> $GITHUB_OUTPUT
-          # Crear lista separada por espacios para el siguiente step
-          echo "sql_files_list<<EOF" >> $GITHUB_OUTPUT
-          echo "$sql_files" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
-        fi
+        echo "🔍 Iniciando análisis de riesgo de scripts SQL..."
+        python sql_analyzer.py
         
     
