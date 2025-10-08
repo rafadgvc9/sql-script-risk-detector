@@ -291,7 +291,6 @@ def analizar_multiples_archivos(directorio: str = ".", patron: str = "*.sql", li
             riesgo, resultados = analizar_sql(sql_file)
             
             if resultados:
-                print(f'Archivo analizado: {sql_file}\n')
                 results_summary.append({
                     'file': sql_file,
                     'risk': riesgo,
@@ -300,6 +299,9 @@ def analizar_multiples_archivos(directorio: str = ".", patron: str = "*.sql", li
                 
                 if riesgo:
                     total_risk = True
+                    print(f'\nEl script {sql_file} debe ser revisado y no se puede aprobar automáticamente')
+               
+           
                 
         except Exception as e:
             print(f" Error analizando {sql_file}: {str(e)}\n")
