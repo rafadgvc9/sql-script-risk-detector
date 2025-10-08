@@ -304,10 +304,6 @@ def analizar_multiples_archivos(directorio: str = ".", patron: str = "*.sql", li
         except Exception as e:
             print(f" Error analizando {sql_file}: {str(e)}\n")
             return 1
-
-    
-    for summary in results_summary:
-        print(f"{summary['file']}: {status} ({summary['count']} operaciones)")
     
     if total_risk:
         return 1
