@@ -291,7 +291,7 @@ def analizar_multiples_archivos(directorio: str = ".", patron: str = "*.sql", li
             riesgo, resultados = analizar_sql(sql_file)
             
             if resultados:
-                
+                print(f'Archivo analizado: {sql_file}\n')
                 results_summary.append({
                     'file': sql_file,
                     'risk': riesgo,
