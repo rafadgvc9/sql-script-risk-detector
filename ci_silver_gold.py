@@ -314,19 +314,15 @@ def analizar_multiples_archivos(directorio: str = ".", patron: str = "*.sql", li
             print(f"\nArchivo: {archivo_info['file']}")
             print(f"   Total de operaciones con riesgo: {len(archivo_info['sentences'])}\n")
             
-            for i, sentencia_info in enumerate(archivo_info['sentences'], 1):
+            for i, sentence_info in enumerate(archivo_info['sentences'], 1):
                 
-                print(f"\n Operación {i} - Riesgo: {sentencia_info['riesgo']}")
-                print(f"   Acción: {sentencia_info['accion']}")
-                if sentencia_info['objeto']:
-                    print(f"   Objeto: {sentencia_info['objeto']}")
-                if sentencia_info['columna']:
-                    print(f"   Columna: {sentencia_info['columna']}")
+                print(f"\n Operación {i} - Riesgo: {sentence_info['riesgo']}")
+                print(f"   Acción: {sentence_info['accion']}")
+                if sentence_info['objeto']:
+                    print(f"   Objeto: {sentence_info['objeto']}")
+                if sentence_info['columna']:
+                    print(f"   Columna: {sentence_info['columna']}")
                 
-                print(f"\n   Sentencia SQL:")
-                for linea in sentencia_info['sentencia'].split('\n'):
-                    print(f"      {linea}")
-                print()
         return 1
     else:
         print("   No se detectaron operaciones de alto riesgo")
