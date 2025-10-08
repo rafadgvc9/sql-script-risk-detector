@@ -289,7 +289,6 @@ def analizar_sql(path_sql: str):
                 riesgo, resultados = analizar_sql(sql_file)
                 
                 if resultados:
-                    for resultado in resultados:
                     
                     results_summary.append({
                         'file': sql_file,
