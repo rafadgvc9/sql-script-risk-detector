@@ -312,9 +312,9 @@ def analizar_multiples_archivos(directorio: str = ".", patron: str = "*.sql", li
         
         for archivo_info in risky_files:
             print(f"\nArchivo: {archivo_info['file']}")
-            print(f"   Total de operaciones con riesgo: {len(archivo_info['sentencias'])}\n")
+            print(f"   Total de operaciones con riesgo: {len(archivo_info['sentences'])}\n")
             
-            for i, sentencia_info in enumerate(archivo_info['sentencias'], 1):
+            for i, sentencia_info in enumerate(archivo_info['sentences'], 1):
                 
                 print(f"\n Operación {i} - Riesgo: {sentencia_info['riesgo']}")
                 print(f"   Acción: {sentencia_info['accion']}")
