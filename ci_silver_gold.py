@@ -268,15 +268,70 @@ def analizar_sql(path_sql: str):
 
     return hay_riesgo, resultados
 
+def analizar_multiples_archivos(directorio: str = ".", patron: str = "*.sql", limite: int = 10) -> int:
+    sql_files = []
+    for root, dirs, files in os.walk(directorio):
+        for file in files:
+            if file.endswith('.sql'):
+                sql_files.append(os.path.join(root, file))
+    sql_files = [f for f in sql_files if not any(part.startswith('.') for part in Path(f).parts)]
+    sql_files = sql_files[:limite]
+    
+    if not sql_files:
+        print("No se encontraron archivos SQL para analizar")
+        return 0
+    
+    total_risk = False
+    results_summary = []
+    
+    for sql_file in sql_files:
+        try:
+            riesgo, resultados = analizar_sql(sql_file)
+            
+            if resultados:
+                for resultado in resultados:
+                
+                results_summary.append({
+                    'file': sql_file,
+                    'risk': riesgo,
+                    'count': len(resultados)
+                })
+                
+                if riesgo:
+                    total_risk = True
+                
+        except Exception as e:
+            print(f" Error analizando {sql_file}: {str(e)}\n")
+            return 1
+
+    
+    for summary in results_summary:
+        print(f"{summary['file']}: {status} ({summary['count']} operaciones)")
+    
+    if total_risk:
+        return 1
+    else:
+        return 0
 
 if __name__ == "__main__":
-    path = "script.sql" 
-    riesgo, resultados = analizar_sql(path)
-    for r in resultados:
-        print(r)
-    
-    if riesgo:
-        print("El script debe ser revisado y no se puede aprobar automáticamente")
-    else: 
-        print("El script puede aprobarse automáticamente")
+    if len(sys.argv) > 1:
+        path = sys.argv[1]
+        
+        if os.path.isdir(path):
+            exit_code = analizar_multiples_archivos(path)
+            sys.exit(exit_code)
+        else:
+            riesgo, resultados = analizar_sql(path)
+            for r in resultados:
+                print(r)
+            
+            if riesgo:
+                print("\nEl script debe ser revisado y no se puede aprobar automáticamente")
+                sys.exit(1)
+            else:
+                print("\nEl script puede aprobarse automáticamente")
+                sys.exit(0)
+    else:
+        exit_code = analizar_multiples_archivos(".")
+        sys.exit(exit_code)
 
