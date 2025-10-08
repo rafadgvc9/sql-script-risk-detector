@@ -30,7 +30,7 @@ jobs:
         
     - name: analyze sql scripts
       run: |
-        echo "🔍 Iniciando análisis de riesgo de scripts SQL..."
+        echo "Iniciando análisis de riesgo de scripts SQL..."
         python sql_analyzer.py
         
     
