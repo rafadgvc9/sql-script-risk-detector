@@ -284,18 +284,13 @@ def analizar_multiples_archivos(directorio: str = ".", patron: str = "*.sql", li
         return 0
     
     total_risk = False
-    results_summary = []
+    risky_files = []
     
     for sql_file in sql_files:
         try:
             riesgo, resultados = analizar_sql(sql_file)
             
             if resultados:
-                results_summary.append({
-                    'file': sql_file,
-                    'risk': riesgo,
-                    'count': len(resultados)
-                })
                 
                 if riesgo:
                     total_risk = True
