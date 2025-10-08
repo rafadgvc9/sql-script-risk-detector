@@ -299,7 +299,11 @@ def analizar_multiples_archivos(directorio: str = ".", patron: str = "*.sql", li
                 
                 if riesgo:
                     total_risk = True
-                    print(f'\nEl script {sql_file} debe ser revisado y no se puede aprobar automáticamente')
+                    risky_sentences = [r for r in resultados if r["riesgo"] in ["MEDIA", "ALTA"]]
+                    risky_files.append({
+                    'file': sql_file,
+                    'sentences': risky_sentences
+                })
                
            
                 
@@ -308,8 +312,29 @@ def analizar_multiples_archivos(directorio: str = ".", patron: str = "*.sql", li
             return 1
     
     if total_risk:
+        print("\nSe han detectado operaciones con riesgo")
+
+        
+        for archivo_info in archivos_con_riesgo:
+            print(f"\nArchivo: {archivo_info['file']}")
+            print(f"   Total de operaciones con riesgo: {len(archivo_info['sentencias'])}\n")
+            
+            for i, sentencia_info in enumerate(archivo_info['sentencias'], 1):
+                
+                print(f"\n Operación {i} - Riesgo: {sentencia_info['riesgo']}")
+                print(f"   Acción: {sentencia_info['accion']}")
+                if sentencia_info['objeto']:
+                    print(f"   Objeto: {sentencia_info['objeto']}")
+                if sentencia_info['columna']:
+                    print(f"   Columna: {sentencia_info['columna']}")
+                
+                print(f"\n   Sentencia SQL:")
+                for linea in sentencia_info['sentencia'].split('\n'):
+                    print(f"      {linea}")
+                print()
         return 1
     else:
+        print("   No se detectaron operaciones de alto riesgo")
         return 0
 
 if __name__ == "__main__":

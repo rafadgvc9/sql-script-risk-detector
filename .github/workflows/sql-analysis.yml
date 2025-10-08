@@ -1,10 +1,13 @@
 name: SQL Risk Analysis
 
 on:
-  push:
-    branches: [ main, master ]
+  # actions in which the script is triggered (pushes to these branches)
+  push:   
+    # branches to observe (might have to add more)              
+    branches: [ main, master ]      
     paths:
       - '**/*.sql'
+  # same, now with PRs to these branches
   pull_request:
     branches: [ main, master ]
     paths:
