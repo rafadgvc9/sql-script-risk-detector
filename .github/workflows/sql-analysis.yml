@@ -31,6 +31,6 @@ jobs:
     - name: analyze sql scripts
       run: |
         echo "Iniciando análisis de riesgo de scripts SQL..."
-        python sql_analyzer.py
+        python ci_silver_gold.py
         
     

@@ -10,7 +10,7 @@ CREATE OR REPLACE SCHEMA db_example.silver;
 CREATE SCHEMA db_example.geld;
 ALTER SCHEMA db_example.geld RENAME TO gold;
 DROP SCHEMA db_example.gold;
-UNDROP SCHEMA db_example.gold; 
+UNDROP SCHEMA db_example.gold;
 
 -- Tablas
 CREATE OR REPLACE TABLE db_example.gold.dim_where (id INT, place_name VARCHAR);
