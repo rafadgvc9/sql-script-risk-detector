@@ -1,1 +1,1 @@
-CREATE DATABASE db_tmp;    
+CREATE DATABASE db_tmp;
