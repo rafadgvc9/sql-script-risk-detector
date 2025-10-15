@@ -196,22 +196,21 @@ def analizar_sql(path_sql: str):
             match = re.search(r"^USE\s+SCHEMA\s+(?:([A-Z0-9_.\"]+)\.)?([A-Z0-9_.\"]+)", stmt_clean)
             if match:
                 # USE SCHEMA schema
-                db_part = match.group(1)
+                if match.group(1):
+                    db_name = match.group(1).strip('"').strip("'")
+                    schema_part = match.group(2).strip('"').strip("'")
+                    current_context["database"] = db_name
+                    current_context["schema"] = schema_part
                 # USE SCHEMA database.schema
-                schema_part = match.group(2) if match.group(2) else match.group(1)
-                
-                if db_part:
-                    current_context["database"] = db_part.strip('"').strip("'")
-                    current_context["schema"] = schema_part.strip('"').strip("'")
                 else:
-                    current_context["schema"] = schema_part.strip('"').strip("'")
+                    schema_part = match.group(2).strip('"').strip("'")
+                    current_context["schema"] = schema_part
                 
-                resultados.append(_create_result("USE_SCHEMA", 
-                                                f"{db_part}.{schema_part}" if db_part else schema_part, 
-                                                None, False, 
-                                                {"context": "schema", 
-                                                 "database": current_context["database"],
-                                                 "schema": current_context["schema"]}))
+                full_name = f"{match.group(1)}.{match.group(2)}" if match.group(1) else match.group(2)
+                resultados.append(_create_result("USE_SCHEMA", full_name, None, False, 
+                                        {"context": "schema", 
+                                         "database": current_context["database"],
+                                         "schema": current_context["schema"]}))
                 continue
 
         # CREATE
