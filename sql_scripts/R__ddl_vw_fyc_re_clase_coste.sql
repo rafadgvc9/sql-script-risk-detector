@@ -1,6 +1,6 @@
 USE DATABASE DB_SIL_{{ environment }};
 USE SCHEMA MDM_CORPORATIVO;
-
+ 
 create or replace view VW_FYC_RE_CLASE_COSTE
 (
     CO_CLASE_COSTE COMMENT 'Clase de coste',
