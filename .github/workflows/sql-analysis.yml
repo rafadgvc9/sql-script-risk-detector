@@ -20,20 +20,28 @@ jobs:
     steps:
     - name: check code
       uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
       
     - name: configure python 
+      if: steps.changed-sql-files.outputs.any_changed == 'true'
       uses: actions/setup-python@v4
       with:
         python-version: '3.11'
         
     - name: install requirements
+      if: steps.changed-sql-files.outputs.any_changed == 'true'
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements.txt
         
     - name: analyze sql scripts
+      if: steps.changed-sql-files.outputs.any_changed == 'true'
+      env:
+        CHANGED_SQL_FILES: ${{ steps.changed-sql-files.outputs.all_changed_files }}
       run: |
         echo "Iniciando análisis de riesgo de scripts SQL..."
+        echo "Archivos SQL modificados: $CHANGED_SQL_FILES"
         python ci_silver_gold.py
         
     
