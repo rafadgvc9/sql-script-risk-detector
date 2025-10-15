@@ -251,7 +251,7 @@ def analizar_sql(path_sql: str):
                 if obj_info:
                     obj_info["current_context"] = current_context.copy()
                 
-                resultados.append(_create_result(accion_base, obj_name, None, needs_lineage_check,object_info=obj_info))
+                resultados.append(_create_result(accion_base, obj_name, None, needs_lineage_check, object_info=obj_info))
 
 
         # ALTER 
@@ -469,6 +469,16 @@ def analizar_multiples_archivos(directorio: str = ".", patron: str = "*.sql", li
                     print(f"   Objeto: {sentence_info['objeto']}")
                 if sentence_info['columna']:
                     print(f"   Columna: {sentence_info['columna']}")
+                if 'object_info' in sentence_info and sentence_info['object_info']:
+                    obj_info = sentence_info['object_info']
+                    print(f"   Nivel de cualificación: {obj_info.get('qualification_level', 'N/A')}")
+                    if obj_info.get('database'):
+                        print(f"   Database explícita: {obj_info['database']}")
+                    if obj_info.get('schema'):
+                        print(f"   Schema explícito: {obj_info['schema']}")
+                    ctx = obj_info.get('current_context', {})
+                        if ctx.get('database') or ctx.get('schema'):
+                            print(f"   Contexto activo -> Database: {ctx.get('database', 'N/A')}, Schema: {ctx.get('schema', 'N/A')}")
                 
         return 1
     else:
