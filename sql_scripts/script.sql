@@ -1,4 +1,4 @@
-USE DATABASE db_example;
+USE DATABASE db_eximple;
 USE SCHEMA db_example.gold;
 
 -- Bases de datos
@@ -19,7 +19,7 @@ UNDROP SCHEMA db_example.gold;
 CREATE OR REPLACE TABLE db_example.gold.dim_where (id INT, place_name VARCHAR);
 CREATE HYBRID TABLE db_example.gold.dim_who (id INT, username STRING);
 CREATE OR ALTER EXTERNAL TABLE db_example.gold.dim_where (id INT, place_name VARCHAR);
-DROP TABLE db_example.gold.dim_where;
+DROP TABLE dim_where;
 ALTER TABLE db_example.gold.dim_where ADD COLUMN place_description STRING;
 ALTER TABLE db_example.gold.dim_where DROP COLUMN place_description;
 ALTER TABLE db_example.gold.dim_where ALTER COLUMN place_name TYPE VARCHAR(100);
