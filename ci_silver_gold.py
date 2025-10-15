@@ -288,7 +288,7 @@ def analizar_sql(path_sql: str, template_vars: Dict[str, str] = None):
                     accion_base = f"CREATE_OR_ALTER_{obj_type}"
                     needs_lineage_check = True
 
-                match = re.search(fr"{obj_type}\s+(?:IF\s+NOT\s+EXISTS\s+)?([A-Z0-9_.\"]+)", stmt_clean)
+                match = re.search(fr"{obj_type}\s+(?:IF\s+NOT\s+EXISTS\s+)?([A-Z0-9_.\"]+)(?=\s*[\(,\s]|\s+COMMENT|\s+AS|\s*;)", stmt_clean)
                 obj_name = match.group(1) if match else None
                 obj_info = parse_object_name(obj_name) if obj_name else None
                 if obj_info:
