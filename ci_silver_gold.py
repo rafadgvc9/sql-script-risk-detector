@@ -181,7 +181,7 @@ def analizar_sql(path_sql: str):
             continue
 
         # USE DATABASE
-        if re.match(r"^USE\s+(DATABASE\s+)?([A-Z0-9_.\"]+)", stmt_clean):
+        if re.match(r"^USE\s+DATABASE\s+", stmt_clean):
             match = re.search(r"^USE\s+(?:DATABASE\s+)?([A-Z0-9_.\"]+)", stmt_clean)
             if match:
                 db_name = match.group(1).strip('"').strip("'")
@@ -192,7 +192,7 @@ def analizar_sql(path_sql: str):
                 continue
 
         # USE SCHEMA
-        if re.match(r"^USE\s+SCHEMA\s", stmt_clean):
+        elif re.match(r"^USE\s+SCHEMA\s", stmt_clean):
             match = re.search(r"^USE\s+SCHEMA\s+([A-Z0-9_.\"]+)", stmt_clean)
             if match:
                 full_name = match.group(1).strip('"').strip("'")

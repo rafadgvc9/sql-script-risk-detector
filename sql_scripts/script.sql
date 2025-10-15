@@ -2,7 +2,7 @@ USE DATABASE db_eximple;
 USE SCHEMA db_exemple.gold;
 
 -- Bases de datos
-CREATE OR REPLACE DATABASE db_example;
+CREATE OR REPLACE DATABASE db_example; 
 CREATE DATABASE db_tmp;
 ALTER DATABASE db_example SET DATA_RETENTION_TIME_IN_DAYS=1;
 DROP DATABASE db_tmp;
