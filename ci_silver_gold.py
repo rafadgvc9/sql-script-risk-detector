@@ -12,7 +12,7 @@ TEMPLATE_VARIABLES = {
     "env": "PRO",
     "environment": "PRO",
     "region": "EU",
-    "project": "DATA_PROJECT"
+    "project": "ECI"
 }
 
 # definicion de riesgos para cada accion
@@ -224,7 +224,7 @@ def analizar_sql(path_sql: str, template_vars: Dict[str, str] = None):
 
         # USE DATABASE
         if re.match(r"^USE\s+DATABASE\s+", stmt_clean):
-            match = re.search(r"^USE\s+DATABASE\s+([A-Z0-9_.\"]+)", stmt_clean)
+            match = re.search(r"^USE\s+(?:DATABASE\s+)?([A-Z0-9_.\"]+)", stmt_clean)
             if match:
                 db_name = match.group(1).strip('"').strip("'")
                 current_context["database"] = db_name
@@ -234,7 +234,7 @@ def analizar_sql(path_sql: str, template_vars: Dict[str, str] = None):
                 continue
 
         # USE SCHEMA
-        elif re.match(r"^USE\s+SCHEMA\s+", stmt_clean):
+        elif re.match(r"^USE\s+SCHEMA\s", stmt_clean):
             match = re.search(r"^USE\s+SCHEMA\s+([A-Z0-9_.\"]+)", stmt_clean)
             if match:
                 full_name = match.group(1).strip('"').strip("'")
@@ -245,9 +245,9 @@ def analizar_sql(path_sql: str, template_vars: Dict[str, str] = None):
                     current_context["database"] = parts[0]
                     current_context["schema"] = parts[1]
                 # schema
-                elif len(parts) == 1: 
+                elif len(parts) == 1:  
                     current_context["schema"] = parts[0]
-                
+
                 resultados.append(_create_result("USE_SCHEMA", full_name, None, False, 
                                         {"context": "schema", 
                                          "database": current_context["database"],
