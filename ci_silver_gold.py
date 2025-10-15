@@ -8,11 +8,11 @@ from typing import List, Dict, Any, Tuple, Optional, Callable
 
 # estas variables se deben de quitar, y se debe referenciar 
 TEMPLATE_VARIABLES = {
-    "current_environment": "DES",
-    "env": "DES",
-    "environment": "DES",
+    "current_environment": "PRO",
+    "env": "PRO",
+    "environment": "PRO",
     "region": "EU",
-    "project": "ECI"
+    "project": "DATA_PROJECT"
 }
 
 # definicion de riesgos para cada accion
@@ -108,7 +108,6 @@ def resolve_template_variables(text: str, variables: Dict[str, str] = None) -> T
         var_name = match.group(1).lower()
         detected_vars.append(var_name)
         
-        # Buscar el valor en el diccionario (case-insensitive)
         var_value = None
         for key, value in variables.items():
             if key.lower() == var_name:
@@ -124,7 +123,6 @@ def resolve_template_variables(text: str, variables: Dict[str, str] = None) -> T
     
     return resolved_text, detected_vars
 
-
 # esta funcion debe cambiarse a la existente
 def get_object_lineage():
     return random.choice([True, False])
@@ -134,10 +132,6 @@ def parse_object_name(obj_name: str) -> Dict[str, Optional[str]]:
     """
     Analiza un nombre de objeto y determina si está completamente cualificado.
     Retorna un diccionario con database, schema, y object.
-    Ejemplos:
-    - "table_name" -> {"database": None, "schema": None, "object": "table_name"}
-    - "schema.table_name" -> {"database": None, "schema": "schema", "object": "table_name"}
-    - "database.schema.table_name" -> {"database": "database", "schema": "schema", "object": "table_name"}
     """
     if not obj_name:
         return {"database": None, "schema": None, "object": None, "is_qualified": False}
@@ -175,7 +169,8 @@ def parse_object_name(obj_name: str) -> Dict[str, Optional[str]]:
 
 # construye y calcula el riesgo 
 def _create_result(accion: str, objeto: Optional[str], columna: Optional[str], 
-                   needs_lineage_check: bool, object_info: Optional[Dict] = None) -> Dict[str, Any]:
+                   needs_lineage_check: bool, object_info: Optional[Dict] = None,
+                   template_vars: Optional[List[str]] = None) -> Dict[str, Any]:
     riesgo_base = RIESGO[accion]
     riesgo_final = ""
     
@@ -198,6 +193,9 @@ def _create_result(accion: str, objeto: Optional[str], columna: Optional[str],
     if object_info:
         result["object_info"] = object_info
     
+    if template_vars:
+        result["template_variables"] = template_vars
+    
     return result
 
 
@@ -205,7 +203,8 @@ def _create_result(accion: str, objeto: Optional[str], columna: Optional[str],
 def analizar_sql(path_sql: str, template_vars: Dict[str, str] = None):
     sql_text = Path(path_sql).read_text()
     resolved_sql, all_detected_vars = resolve_template_variables(sql_text, template_vars)
-    statements = sqlparse.split(sql_text)
+    
+    statements = sqlparse.split(resolved_sql)
 
     current_context = {
         "database": None,
@@ -225,7 +224,7 @@ def analizar_sql(path_sql: str, template_vars: Dict[str, str] = None):
 
         # USE DATABASE
         if re.match(r"^USE\s+DATABASE\s+", stmt_clean):
-            match = re.search(r"^USE\s+(?:DATABASE\s+)?([A-Z0-9_.\"]+)", stmt_clean)
+            match = re.search(r"^USE\s+DATABASE\s+([A-Z0-9_.\"]+)", stmt_clean)
             if match:
                 db_name = match.group(1).strip('"').strip("'")
                 current_context["database"] = db_name
@@ -235,7 +234,7 @@ def analizar_sql(path_sql: str, template_vars: Dict[str, str] = None):
                 continue
 
         # USE SCHEMA
-        elif re.match(r"^USE\s+SCHEMA\s", stmt_clean):
+        elif re.match(r"^USE\s+SCHEMA\s+", stmt_clean):
             match = re.search(r"^USE\s+SCHEMA\s+([A-Z0-9_.\"]+)", stmt_clean)
             if match:
                 full_name = match.group(1).strip('"').strip("'")
@@ -246,13 +245,24 @@ def analizar_sql(path_sql: str, template_vars: Dict[str, str] = None):
                     current_context["database"] = parts[0]
                     current_context["schema"] = parts[1]
                 # schema
-                elif len(parts) == 1:  # solo schema
+                elif len(parts) == 1: 
                     current_context["schema"] = parts[0]
                 
                 resultados.append(_create_result("USE_SCHEMA", full_name, None, False, 
                                         {"context": "schema", 
                                          "database": current_context["database"],
                                          "schema": current_context["schema"]}))
+                continue
+
+        # USE (en snowflake equivalente a USE DATABASE)
+        elif re.match(r"^USE\s+[A-Z0-9_.\"]", stmt_clean):
+            match = re.search(r"^USE\s+([A-Z0-9_.\"]+)", stmt_clean)
+            if match:
+                db_name = match.group(1).strip('"').strip("'")
+                current_context["database"] = db_name
+                current_context["schema"] = None
+                resultados.append(_create_result("USE_DATABASE", db_name, None, False, 
+                                                {"context": "database", "value": db_name}))
                 continue
 
         # CREATE
@@ -462,7 +472,8 @@ def analizar_sql(path_sql: str, template_vars: Dict[str, str] = None):
     return hay_riesgo, resultados
 
 
-def analizar_multiples_archivos(directorio: str = ".", patron: str = "*.sql", limite: int = 10) -> int:
+def analizar_multiples_archivos(directorio: str = ".", patron: str = "*.sql", limite: int = 10, 
+                                template_vars: Dict[str, str] = None) -> int:
     sql_files = []
     for root, dirs, files in os.walk(directorio):
         for file in files:
@@ -480,7 +491,7 @@ def analizar_multiples_archivos(directorio: str = ".", patron: str = "*.sql", li
     
     for sql_file in sql_files:
         try:
-            riesgo, resultados = analizar_sql(sql_file)
+            riesgo, resultados = analizar_sql(sql_file, template_vars)
             
             if resultados:
                 if riesgo:
