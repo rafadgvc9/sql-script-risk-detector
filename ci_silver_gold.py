@@ -472,15 +472,19 @@ def analizar_sql(path_sql: str, template_vars: Dict[str, str] = None):
     return hay_riesgo, resultados
 
 
-def analizar_multiples_archivos(directorio: str = ".", patron: str = "*.sql", limite: int = 10, 
+def analizar_multiples_archivos(archivos_sql: List[str] = None, 
                                 template_vars: Dict[str, str] = None) -> int:
-    sql_files = []
-    for root, dirs, files in os.walk(directorio):
-        for file in files:
-            if file.endswith('.sql'):
-                sql_files.append(os.path.join(root, file))
-    sql_files = [f for f in sql_files if not any(part.startswith('.') for part in Path(f).parts)]
-    sql_files = sql_files[:limite]
+    if archivos_sql is None:
+        # si no se 
+        sql_files = []
+        for root, dirs, files in os.walk("."):
+            for file in files:
+                if file.endswith('.sql'):
+                    sql_files.append(os.path.join(root, file))
+        sql_files = [f for f in sql_files if not any(part.startswith('.') for part in Path(f).parts)]
+        sql_files = sql_files[:10] 
+    else:
+        sql_files = archivos_sql
     
     if not sql_files:
         print("No se encontraron archivos SQL para analizar")
@@ -540,22 +544,20 @@ def analizar_multiples_archivos(directorio: str = ".", patron: str = "*.sql", li
 
 if __name__ == "__main__":
     if len(sys.argv) > 1:
-        path = sys.argv[1]
+        archivos = sys.argv[1:]
         
-        if os.path.isdir(path):
-            exit_code = analizar_multiples_archivos(path)
+        if len(archivos) == 1 and os.path.isdir(archivos[0]):
+            exit_code = analizar_multiples_archivos(None)
             sys.exit(exit_code)
         else:
-            riesgo, resultados = analizar_sql(path)
-            for r in resultados:
-                print(r)
+            sql_files = [f for f in archivos if f.endswith('.sql') and os.path.isfile(f)]
             
-            if riesgo:
-                print("\nEl script debe ser revisado y no se puede aprobar automáticamente")
-                sys.exit(1)
-            else:
-                print("\nEl script puede aprobarse automáticamente")
+            if not sql_files:
+                print("No se proporcionaron archivos SQL válidos")
                 sys.exit(0)
+            
+            exit_code = analizar_multiples_archivos(sql_files)
+            sys.exit(exit_code)
     else:
-        exit_code = analizar_multiples_archivos(".")
+        exit_code = analizar_multiples_archivos(None)
         sys.exit(exit_code)
