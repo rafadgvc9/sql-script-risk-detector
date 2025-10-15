@@ -44,11 +44,9 @@ jobs:
         
     - name: analyze sql scripts
       if: steps.changed-sql-files.outputs.any_changed == 'true'
-      env:
-        CHANGED_SQL_FILES: ${{ steps.changed-sql-files.outputs.all_changed_files }}
       run: |
         echo "Iniciando análisis de riesgo de scripts SQL..."
-        echo "Archivos SQL modificados: $CHANGED_SQL_FILES"
-        python ci_silver_gold.py ${{ CHANGED_SQL_FILES }}
+        echo "Archivos SQL modificados: ${{ steps.changed-sql-files.outputs.all_changed_files }}"
+        python ci_silver_gold.py ${{ steps.changed-sql-files.outputs.all_changed_files }}
         
     
