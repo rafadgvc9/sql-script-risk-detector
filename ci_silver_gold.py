@@ -328,42 +328,42 @@ def analizar_sql(path_sql: str, template_vars: Dict[str, str] = None):
                     obj_info["current_context"] = current_context.copy()
                 resultados.append(_create_result("ALTER_VIEW", obj_name, None, True, obj_info))
             elif "DATABASE" in stmt_clean:
-                match = re.search(r"DATABASE\s+(?:IF\s+EXISTS\s+)?([A-Z0-9_.\"]+)(?=\s+(?:SET|RENAME|COMMENT|AS)|\s*;)", stmt_clean)
+                match = re.search(r"DATABASE\s+(?:IF\s+EXISTS\s+)?([A-Z0-9_.\"]+)(?=\s+(?:SET|RENAME|COMMENT)|\s*;)", stmt_clean)
                 obj_name = match.group(1) if match else None
                 obj_info = parse_object_name(obj_name) if obj_name else None
                 if obj_info:
                     obj_info["current_context"] = current_context.copy()
                 resultados.append(_create_result("ALTER_DATABASE", obj_name, None, True, obj_info))
             elif "SCHEMA" in stmt_clean:
-                match = re.search(r"SCHEMA\s+(?:IF\s+EXISTS\s+)?([A-Z0-9_.\"]+)(?=\s+(?:SET|RENAME|COMMENT|AS)|\s*;)", stmt_clean)
+                match = re.search(r"SCHEMA\s+(?:IF\s+EXISTS\s+)?([A-Z0-9_.\"]+)(?=\s+(?:SET|RENAME|COMMENT)|\s*;)", stmt_clean)
                 obj_name = match.group(1) if match else None
                 obj_info = parse_object_name(obj_name) if obj_name else None
                 if obj_info:
                     obj_info["current_context"] = current_context.copy()
                 resultados.append(_create_result("ALTER_SCHEMA", obj_name, None, True, obj_info))
             elif "WAREHOUSE" in stmt_clean:
-                match = re.search(r"WAREHOUSE\s+(?:IF\s+EXISTS\s+)?([A-Z0-9_.\"]+)(?=\s+(?:SET|RENAME|COMMENT|AS)|\s*;)", stmt_clean)
+                match = re.search(r"WAREHOUSE\s+(?:IF\s+EXISTS\s+)?([A-Z0-9_.\"]+)(?=\s+(?:SET|RENAME|COMMENT)|\s*;)", stmt_clean)
                 obj_name = match.group(1) if match else None
                 obj_info = parse_object_name(obj_name) if obj_name else None
                 if obj_info:
                     obj_info["current_context"] = current_context.copy()
                 resultados.append(_create_result("ALTER_WAREHOUSE", obj_name, None, True, obj_info))
             elif "SHARE" in stmt_clean:
-                match = re.search(r"SHARE\s+(?:IF\s+EXISTS\s+)?([A-Z0-9_.\"]+)(?=\s+(?:SET|RENAME|COMMENT|AS)|\s*;)", stmt_clean)
+                match = re.search(r"SHARE\s+(?:IF\s+EXISTS\s+)?([A-Z0-9_.\"]+)(?=\s+(?:SET|RENAME|COMMENT)|\s*;)", stmt_clean)
                 obj_name = match.group(1) if match else None
                 obj_info = parse_object_name(obj_name) if obj_name else None
                 if obj_info:
                     obj_info["current_context"] = current_context.copy()
                 resultados.append(_create_result("ALTER_SHARE", obj_name, None, True, obj_info))
             elif "TAG" in stmt_clean:
-                match = re.search(r"TAG\s+(?:IF\s+EXISTS\s+)?([A-Z0-9_.\"]+)(?=\s+(?:SET|RENAME|COMMENT|AS)|\s*;)", stmt_clean)
+                match = re.search(r"TAG\s+(?:IF\s+EXISTS\s+)?([A-Z0-9_.\"]+)(?=\s+(?:SET|RENAME|UNSET|ADD|DROP)|\s*;)", stmt_clean)
                 obj_name = match.group(1) if match else None
                 obj_info = parse_object_name(obj_name) if obj_name else None
                 if obj_info:
                     obj_info["current_context"] = current_context.copy()
                 resultados.append(_create_result("ALTER_TAG", obj_name, None, True, obj_info))
             elif "ACCESS_POLICY" in stmt_clean:
-                match = re.search(r"ACCESS\s+POLICY\s+(?:IF\s+EXISTS\s+)?([A-Z0-9_.\"]+)(?=\s+(?:SET|RENAME|COMMENT|AS)|\s*;)", stmt_clean)
+                match = re.search(r"ACCESS\s+POLICY\s+(?:IF\s+EXISTS\s+)?([A-Z0-9_.\"]+)(?=\s+(?:SET|RENAME)|\s*;)", stmt_clean)
                 obj_name = match.group(1) if match else None
                 obj_info = parse_object_name(obj_name) if obj_name else None
                 if obj_info:
@@ -399,7 +399,7 @@ def analizar_sql(path_sql: str, template_vars: Dict[str, str] = None):
             elif "TAG" in stmt_clean: obj_type = "TAG"
 
             if obj_type:
-                match = re.search(fr"{obj_type}\s+([A-Z0-9_.\"]+)", stmt_clean)
+                match = re.search(fr"{obj_type}\s+([A-Z0-9_.\"]+)(?=\s*;|\s*$)", stmt_clean)
                 obj_name = match.group(1) if match else None
                 obj_info = parse_object_name(obj_name) if obj_name else None
                 if obj_info:
@@ -408,7 +408,7 @@ def analizar_sql(path_sql: str, template_vars: Dict[str, str] = None):
 
         # TRUNCATE
         elif re.match(r"^TRUNCATE\s+TABLE", stmt_clean):
-            match = re.search(r"TABLE\s+([A-Z0-9_.\"]+)", stmt_clean)
+            match = re.search(r"TABLE\s+([A-Z0-9_.\"]+)(?=\s*;|\s*$)", stmt_clean)
             obj_name = match.group(1) if match else None
             obj_info = parse_object_name(obj_name) if obj_name else None
             if obj_info:
@@ -416,7 +416,7 @@ def analizar_sql(path_sql: str, template_vars: Dict[str, str] = None):
             resultados.append(_create_result("TRUNCATE_TABLE", obj_name, None, True, obj_info))
         
         # INSERT DML
-        elif re.match(r"^INSERT\s+INTO\s+([A-Z0-9_.\"]+)\s+VALUES", stmt_clean):
+        elif re.match(r"^INSERT\s+INTO", stmt_clean):
             match = re.search(r"INSERT\s+INTO\s+([A-Z0-9_.\"]+)(?=\s*[\(]|\s+VALUES)", stmt_clean)
             obj_name = match.group(1) if match else None
             obj_info = parse_object_name(obj_name) if obj_name else None
@@ -427,8 +427,8 @@ def analizar_sql(path_sql: str, template_vars: Dict[str, str] = None):
         
         # MERGE DML
         elif re.match(r"^MERGE\s+INTO", stmt_clean):
-            tabla = re.findall(r"MERGE\s+INTO\s+([A-Z0-9_.\"]+)", stmt_clean)
-            obj_name = tabla[0] if tabla else None
+            match = re.search(r"MERGE\s+INTO\s+([A-Z0-9_.\"]+)(?=\s+(?:AS|USING)|\s*$)", stmt_clean)
+            obj_name = match.group(1) if match else None
             obj_info = parse_object_name(obj_name) if obj_name else None
             if obj_info:
                 obj_info["current_context"] = current_context.copy()
@@ -437,8 +437,8 @@ def analizar_sql(path_sql: str, template_vars: Dict[str, str] = None):
 
         # DELETE DML
         elif re.match(r"^DELETE\s+FROM", stmt_clean):
-            tabla = re.findall(r"DELETE\s+FROM\s+([A-Z0-9_.\"]+)", stmt_clean)
-            obj_name = tabla[0] if tabla else None
+            match = re.search(r"DELETE\s+FROM\s+([A-Z0-9_.\"]+)(?=\s+(?:WHERE|USING)|\s*;|\s*$)", stmt_clean)
+            obj_name = match.group(1) if match else None
             obj_info = parse_object_name(obj_name) if obj_name else None
             if obj_info:
                 obj_info["current_context"] = current_context.copy()
@@ -447,7 +447,7 @@ def analizar_sql(path_sql: str, template_vars: Dict[str, str] = None):
         
         # GRANT PRIVILEGES
         elif re.match(r"^GRANT\s+", stmt_clean):
-            match = re.search(r"GRANT\s+([A-Z_,\s]+)\s+ON\s+[A-Z_]+\s+([A-Z0-9_.\"]+)\s+TO\s+(ROLE|USER)\s+([A-Z0-9_]+)", stmt_clean)
+            match = re.search(r"GRANT\s+([A-Z_,\s]+)\s+ON\s+[A-Z_]+\s+([A-Z0-9_.\"]+)(?=\s+TO)", stmt_clean)
             if match:
                 obj_name = match.group(2)
                 obj_info = parse_object_name(obj_name) if obj_name else None
@@ -458,7 +458,7 @@ def analizar_sql(path_sql: str, template_vars: Dict[str, str] = None):
 
         # REVOKE PRIVILEGES
         elif re.match(r"^REVOKE\s+", stmt_clean):
-            match = re.search(r"REVOKE\s+([A-Z_,\s]+)\s+ON\s+[A-Z_]+\s+([A-Z0-9_.\"]+)\s+FROM\s+(ROLE|USER)\s+([A-Z0-9_]+)", stmt_clean)
+            match = re.search(r"REVOKE\s+([A-Z_,\s]+)\s+ON\s+[A-Z_]+\s+([A-Z0-9_.\"]+)(?=\s+FROM)", stmt_clean)
             if match:
                 obj_name = match.group(2)
                 obj_info = parse_object_name(obj_name) if obj_name else None
