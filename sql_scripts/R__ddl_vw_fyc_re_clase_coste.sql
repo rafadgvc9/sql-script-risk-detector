@@ -10,7 +10,7 @@ create or replace view VW_FYC_RE_CLASE_COSTE
 	CO_AREA_FUNCIONAL COMMENT 'Área funcional',
 	DT_ENTRADA COMMENT 'Fecha entrada'
 ) COMMENT='Vista de Clases de Coste RE'
- as 
+ as  
 SELECT
     CO_CLASE_COSTE, 
     DS_CLASE_COSTE,

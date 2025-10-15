@@ -202,7 +202,7 @@ def _create_result(accion: str, objeto: Optional[str], columna: Optional[str],
 
 
 # funcion principal para analizar todo el script 
-def analizar_sql(path_sql: str):
+def analizar_sql(path_sql: str, template_vars: Dict[str, str] = None):
     sql_text = Path(path_sql).read_text()
     resolved_sql, all_detected_vars = resolve_template_variables(sql_text, template_vars)
     statements = sqlparse.split(sql_text)
