@@ -32,7 +32,7 @@ CREATE MATERIALIZED VIEW db_example.gold.view_dim_where AS SELECT id, nombre FRO
 ALTER VIEW db_example.gold.view_dim_where RENAME TO dim_where_view;
 DROP VIEW db_example.gold.dim_where_view;
 
--- Warehouses
+-- Warehouses 
 CREATE OR ALTER WAREHOUSE wh_compute;
 CREATE WAREHOUSE wh_bi;
 ALTER WAREHOUSE wh_compute SET WAREHOUSE_SIZE='LARGE';

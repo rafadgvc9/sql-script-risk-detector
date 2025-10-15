@@ -364,8 +364,8 @@ def analizar_sql(path_sql: str):
             match = re.search(r"TABLE\s+([A-Z0-9_.\"]+)", stmt_clean)
             obj_name = match.group(1) if match else None
             obj_info = parse_object_name(obj_name) if obj_name else None
-                if obj_info:
-                    obj_info["current_context"] = current_context.copy()
+            if obj_info:
+                obj_info["current_context"] = current_context.copy()
             resultados.append(_create_result("TRUNCATE_TABLE", obj_name, None, True, object_info=obj_info))
         
         # INSERT DML
@@ -373,8 +373,8 @@ def analizar_sql(path_sql: str):
             tabla = re.findall(r"INSERT\s+INTO\s+([A-Z0-9_.\"]+)+VALUES\s", stmt_clean)
             obj_name = tabla[0] if tabla else None
             obj_info = parse_object_name(obj_name) if obj_name else None
-                if obj_info:
-                    obj_info["current_context"] = current_context.copy()
+            if obj_info:
+                obj_info["current_context"] = current_context.copy()
             resultados.append(_create_result(accion="INSERT_VALUES", objeto=tabla[0] if tabla else None, columna=None, needs_lineage_check=True, object_info=obj_info))
         
         # MERGE DML
@@ -382,8 +382,8 @@ def analizar_sql(path_sql: str):
             tabla = re.findall(r"MERGE\s+INTO\s+([A-Z0-9_.\"]+)", stmt_clean)
             obj_name = tabla[0] if tabla else None
             obj_info = parse_object_name(obj_name) if obj_name else None
-                if obj_info:
-                    obj_info["current_context"] = current_context.copy()
+            if obj_info:
+                obj_info["current_context"] = current_context.copy()
             resultados.append(_create_result(accion="MERGE_VALUES", objeto=tabla[0] if tabla else None, columna=None, needs_lineage_check=True, object_info=obj_info))
 
         # DELETE DML
@@ -391,8 +391,8 @@ def analizar_sql(path_sql: str):
             tabla = re.findall(r"DELETE\s+FROM\s+([A-Z0-9_.\"]+)", stmt_clean)
             obj_name = tabla[0] if tabla else None
             obj_info = parse_object_name(obj_name) if obj_name else None
-                if obj_info:
-                    obj_info["current_context"] = current_context.copy()
+            if obj_info:
+                obj_info["current_context"] = current_context.copy()
             resultados.append(_create_result(accion="DELETE_VALUES", objeto=tabla[0] if tabla else None, columna=None, needs_lineage_check=True, object_info=obj_info))
         
         # GRANT PRIVILEGES
