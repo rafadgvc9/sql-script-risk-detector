@@ -96,20 +96,6 @@ RIESGO = {
     "CREATE_OR_REPLACE_PROCEDURE": ("ALTA", "MEDIA"),
 }
 
-STATEMENT_HANDLERS = [
-    (r"^USE\s+", _handle_use),
-    (r"^CREATE", _handle_create),
-    (r"^ALTER", _handle_alter),
-    (r"^DROP", _handle_drop),
-    (r"^UNDROP", _handle_undrop),
-    (r"^TRUNCATE\s+TABLE", _handle_truncate),
-    (r"^INSERT\s+INTO", _handle_insert),
-    (r"^MERGE\s+INTO", _handle_merge),
-    (r"^DELETE\s+FROM", _handle_delete),
-    (r"^GRANT\s+", _handle_grant),
-    (r"^REVOKE\s+", _handle_revoke),
-]
-
 def resolve_template_variables(text: str, variables: Dict[str, str] = None) -> Tuple[str, List[str]]:
     """
     Detecta y reemplaza variables de template en formato {{ variable }} o {variable}
@@ -496,6 +482,21 @@ def _handle_use(stmt_clean: str, current_context: Dict, proc_context: Optional[s
                                   {"context": "database", "value": db_name})]
     
     return []
+
+
+STATEMENT_HANDLERS = [
+    (r"^USE\s+", _handle_use),
+    (r"^CREATE", _handle_create),
+    (r"^ALTER", _handle_alter),
+    (r"^DROP", _handle_drop),
+    (r"^UNDROP", _handle_undrop),
+    (r"^TRUNCATE\s+TABLE", _handle_truncate),
+    (r"^INSERT\s+INTO", _handle_insert),
+    (r"^MERGE\s+INTO", _handle_merge),
+    (r"^DELETE\s+FROM", _handle_delete),
+    (r"^GRANT\s+", _handle_grant),
+    (r"^REVOKE\s+", _handle_revoke),
+]
 
 # funcion principal para analizar todo el script 
 def analizar_sql(path_sql: str, template_vars: Dict[str, str] = None):

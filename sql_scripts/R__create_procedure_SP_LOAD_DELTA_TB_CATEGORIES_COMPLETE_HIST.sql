@@ -59,4 +59,4 @@ RETURN OBJECT_CONSTRUCT(
             'status', 'SUCCESS', 
             'coment', 'Proceso completado');
 END;
-$$; 
+$$;  
