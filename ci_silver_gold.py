@@ -209,7 +209,7 @@ def analizar_sql(path_sql: str, template_vars: Dict[str, str] = None):
     current_context = {
         "database": None,
         "schema": None
-    }
+    } 
 
     # pasa por todas las sentencias
     resultados = []
