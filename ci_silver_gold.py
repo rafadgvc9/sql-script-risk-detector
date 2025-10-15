@@ -192,8 +192,8 @@ def analizar_sql(path_sql: str):
                 continue
 
         # USE SCHEMA
-        if re.match(r"^USE\s+SCHEMA", stmt_clean):
-            match = re.search(r"^USE\s+SCHEMA\s+(?:([A-Z0-9_.\"]+)\.)?([A-Z0-9_.\"]+)", stmt_clean)
+        if re.match(r"^USE\s+SCHEMA\s", stmt_clean):
+            match = re.search(r"^USE\s+SCHEMA\s+([A-Z0-9_.\"]+)", stmt_clean)
             if match:
                 full_name = match.group(1).strip('"').strip("'")
                 parts = full_name.split('.')
