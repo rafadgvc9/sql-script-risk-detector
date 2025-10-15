@@ -195,18 +195,17 @@ def analizar_sql(path_sql: str):
         if re.match(r"^USE\s+SCHEMA", stmt_clean):
             match = re.search(r"^USE\s+SCHEMA\s+(?:([A-Z0-9_.\"]+)\.)?([A-Z0-9_.\"]+)", stmt_clean)
             if match:
-                # USE SCHEMA schema
-                if match.group(1):
-                    db_name = match.group(1).strip('"').strip("'")
-                    schema_part = match.group(2).strip('"').strip("'")
-                    current_context["database"] = db_name
-                    current_context["schema"] = schema_part
-                # USE SCHEMA database.schema
-                else:
-                    schema_part = match.group(2).strip('"').strip("'")
-                    current_context["schema"] = schema_part
+                full_name = match.group(1).strip('"').strip("'")
+                parts = full_name.split('.')
+
+                # database.schema
+                if len(parts) == 2: 
+                    current_context["database"] = parts[0]
+                    current_context["schema"] = parts[1]
+                # schema
+                elif len(parts) == 1:  # solo schema
+                    current_context["schema"] = parts[0]
                 
-                full_name = f"{match.group(1)}.{match.group(2)}" if match.group(1) else match.group(2)
                 resultados.append(_create_result("USE_SCHEMA", full_name, None, False, 
                                         {"context": "schema", 
                                          "database": current_context["database"],

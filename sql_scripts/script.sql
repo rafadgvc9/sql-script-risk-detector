@@ -1,5 +1,5 @@
 USE DATABASE db_eximple;
-USE SCHEMA db_example.gold;
+USE SCHEMA db_exemple.gold;
 
 -- Bases de datos
 CREATE OR REPLACE DATABASE db_example;
