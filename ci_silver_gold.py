@@ -6,9 +6,9 @@ import os
 from pathlib import Path
 from typing import List, Dict, Any, Tuple, Optional, Callable
 
+
 # definicion de riesgos para cada accion
 RIESGO = {
-
     # DDL TABLAS 
     "CREATE_TABLE": "BAJA",                 
     "DROP_TABLE": ("ALTA", "MEDIA"),                   
@@ -68,7 +68,6 @@ RIESGO = {
     # ALTER TABLE ALTER COLUMN
     "ALTER_TABLE_ADD_COLUMN": "MEDIA",
     "ALTER_TABLE_DROP_COLUMN": "ALTA",      
-    
     "ALTER_TABLE_MODIFY_COLUMN_TYPE": "ALTA", 
     
     # PRIVILEGE & POLICY
@@ -81,9 +80,13 @@ RIESGO = {
     # CONTEXT STATEMENTS
     "USE_DATABASE": "BAJA",
     "USE_SCHEMA": "BAJA",
-
-    # posible inclusion: revision de renames de columnas para que sean consistentes con sus tipos
 }
+
+
+# esta funcion debe cambiarse a la existente
+def get_object_lineage():
+    return random.choice([True, False])
+
 
 def parse_object_name(obj_name: str) -> Dict[str, Optional[str]]:
     """
@@ -127,18 +130,10 @@ def parse_object_name(obj_name: str) -> Dict[str, Optional[str]]:
             "qualification_level": "NONE"
         }
 
-# esta funcion debe cambiarse a la existente
-def get_object_lineage():
-    return random.choice([True, False])
 
 # construye y calcula el riesgo 
-def _create_result(
-    accion: str, 
-    objeto: Optional[str], 
-    columna: Optional[str], 
-    needs_lineage_check: bool, 
-    object_info: Optional[Dict] = None
-    ) -> Dict[str, Any]:
+def _create_result(accion: str, objeto: Optional[str], columna: Optional[str], 
+                   needs_lineage_check: bool, object_info: Optional[Dict] = None) -> Dict[str, Any]:
     riesgo_base = RIESGO[accion]
     riesgo_final = ""
     
@@ -150,7 +145,7 @@ def _create_result(
             riesgo_final = riesgo_sin_linaje 
     else:
         riesgo_final = riesgo_base if isinstance(riesgo_base, str) else riesgo_base[0]
-            
+    
     result = {
         "accion": accion,
         "objeto": objeto,
@@ -162,6 +157,7 @@ def _create_result(
         result["object_info"] = object_info
     
     return result
+
 
 # funcion principal para analizar todo el script 
 def analizar_sql(path_sql: str):
@@ -183,7 +179,7 @@ def analizar_sql(path_sql: str):
         
         if not stmt_clean:
             continue
-        
+
         # USE DATABASE
         if re.match(r"^USE\s+(DATABASE\s+)?([A-Z0-9_.\"]+)", stmt_clean):
             match = re.search(r"^USE\s+(?:DATABASE\s+)?([A-Z0-9_.\"]+)", stmt_clean)
@@ -194,14 +190,16 @@ def analizar_sql(path_sql: str):
                 resultados.append(_create_result("USE_DATABASE", db_name, None, False, 
                                                 {"context": "database", "value": db_name}))
                 continue
-        
-        # USE SCHEMA
-        elif re.match(r"^USE\s+(SCHEMA\s+)?([A-Z0-9_.\"]+)", stmt_clean):
-            match = re.search(r"^USE\s+(?:SCHEMA\s+)?([A-Z0-9_.\"]+)", stmt_clean)
-            if match:
-                db_part = match.group(1)
-                schema_part = match.group(2) if match.group(2) else match.group(1)
 
+        # USE SCHEMA
+        if re.match(r"^USE\s+SCHEMA", stmt_clean):
+            match = re.search(r"^USE\s+SCHEMA\s+(?:([A-Z0-9_.\"]+)\.)?([A-Z0-9_.\"]+)", stmt_clean)
+            if match:
+                # USE SCHEMA schema
+                db_part = match.group(1)
+                # USE SCHEMA database.schema
+                schema_part = match.group(2) if match.group(2) else match.group(1)
+                
                 if db_part:
                     current_context["database"] = db_part.strip('"').strip("'")
                     current_context["schema"] = schema_part.strip('"').strip("'")
@@ -214,16 +212,10 @@ def analizar_sql(path_sql: str):
                                                 {"context": "schema", 
                                                  "database": current_context["database"],
                                                  "schema": current_context["schema"]}))
-
-                schema_name = match.group(1).strip('"').strip("'")
-                current_context["schema"] = schema_name  
-                resultados.append(_create_result("USE_SCHEMA", db_name, None, False, 
-                                                {"context": "schema", "value": schema_name}))
                 continue
 
-
         # CREATE
-        elif re.match(r"^CREATE", stmt_clean):
+        if re.match(r"^CREATE", stmt_clean):
             obj_type = ""
             if "TABLE" in stmt_clean: obj_type = "TABLE"
             elif "VIEW" in stmt_clean: obj_type = "VIEW"
@@ -251,29 +243,31 @@ def analizar_sql(path_sql: str):
                 if obj_info:
                     obj_info["current_context"] = current_context.copy()
                 
-                resultados.append(_create_result(accion_base, obj_name, None, needs_lineage_check, object_info=obj_info))
-
+                resultados.append(_create_result(accion_base, obj_name, None, needs_lineage_check, obj_info))
 
         # ALTER 
         elif re.match(r"^ALTER", stmt_clean):
             if "TABLE" in stmt_clean:
                 table_match = re.search(r"TABLE\s+(?:IF\s+EXISTS\s+)?([A-Z0-9_.\"]+)", stmt_clean)
                 tabla = table_match.group(1) if table_match else None
+                obj_info = parse_object_name(tabla) if tabla else None
+                if obj_info:
+                    obj_info["current_context"] = current_context.copy()
                 
                 if "ADD COLUMN" in stmt_clean:
                     col_match = re.search(r"ADD\s+COLUMN\s+([A-Z0-9_\"]+)", stmt_clean)
                     columna = col_match.group(1) if col_match else None
-                    resultados.append(_create_result("ALTER_TABLE_ADD_COLUMN", tabla, columna, False))
+                    resultados.append(_create_result("ALTER_TABLE_ADD_COLUMN", tabla, columna, False, obj_info))
                 elif "DROP COLUMN" in stmt_clean:
                     col_match = re.search(r"DROP\s+COLUMN\s+([A-Z0-9_\"]+)", stmt_clean)
                     columna = col_match.group(1) if col_match else None
-                    resultados.append(_create_result("ALTER_TABLE_DROP_COLUMN", tabla, columna, True))
+                    resultados.append(_create_result("ALTER_TABLE_DROP_COLUMN", tabla, columna, True, obj_info))
                 elif "ALTER COLUMN" in stmt_clean and "TYPE" in stmt_clean:
                     col_match = re.search(r"ALTER\s+COLUMN\s+([A-Z0-9_\"]+)", stmt_clean)
                     columna = col_match.group(1) if col_match else None
-                    resultados.append(_create_result("ALTER_TABLE_MODIFY_COLUMN_TYPE", tabla, columna, True))
+                    resultados.append(_create_result("ALTER_TABLE_MODIFY_COLUMN_TYPE", tabla, columna, True, obj_info))
                 else:
-                    resultados.append(_create_result("ALTER_TABLE_NOT_COLUMNS", tabla, None, True))
+                    resultados.append(_create_result("ALTER_TABLE_NOT_COLUMNS", tabla, None, True, obj_info))
             
             elif "VIEW" in stmt_clean:
                 match = re.search(r"VIEW\s+([A-Z0-9_.\"]+)", stmt_clean)
@@ -281,46 +275,49 @@ def analizar_sql(path_sql: str):
                 obj_info = parse_object_name(obj_name) if obj_name else None
                 if obj_info:
                     obj_info["current_context"] = current_context.copy()
-                resultados.append(_create_result("ALTER_VIEW", obj_name, None, True, object_info=obj_info))
+                resultados.append(_create_result("ALTER_VIEW", obj_name, None, True, obj_info))
             elif "DATABASE" in stmt_clean:
                 match = re.search(r"DATABASE\s+([A-Z0-9_.\"]+)", stmt_clean)
                 obj_name = match.group(1) if match else None
                 obj_info = parse_object_name(obj_name) if obj_name else None
                 if obj_info:
                     obj_info["current_context"] = current_context.copy()
-                resultados.append(_create_result("ALTER_DATABASE", obj_name, None, True, object_info=obj_info))
+                resultados.append(_create_result("ALTER_DATABASE", obj_name, None, True, obj_info))
             elif "SCHEMA" in stmt_clean:
                 match = re.search(r"SCHEMA\s+([A-Z0-9_.\"]+)", stmt_clean)
                 obj_name = match.group(1) if match else None
                 obj_info = parse_object_name(obj_name) if obj_name else None
                 if obj_info:
                     obj_info["current_context"] = current_context.copy()
-                resultados.append(_create_result("ALTER_SCHEMA", obj_name, None, True, object_info=obj_info))
+                resultados.append(_create_result("ALTER_SCHEMA", obj_name, None, True, obj_info))
             elif "WAREHOUSE" in stmt_clean:
                 match = re.search(r"WAREHOUSE\s+([A-Z0-9_.\"]+)", stmt_clean)
                 obj_name = match.group(1) if match else None
                 obj_info = parse_object_name(obj_name) if obj_name else None
                 if obj_info:
                     obj_info["current_context"] = current_context.copy()
-                resultados.append(_create_result("ALTER_WAREHOUSE", obj_name, None, True, object_info=obj_info))
+                resultados.append(_create_result("ALTER_WAREHOUSE", obj_name, None, True, obj_info))
             elif "SHARE" in stmt_clean:
                 match = re.search(r"SHARE\s+(?:IF\s+EXISTS\s+)?([A-Z0-9_.\"]+)", stmt_clean)
                 obj_name = match.group(1) if match else None
                 obj_info = parse_object_name(obj_name) if obj_name else None
                 if obj_info:
                     obj_info["current_context"] = current_context.copy()
-                resultados.append(_create_result("ALTER_SHARE", obj_name, None, True, object_info=obj_info))
+                resultados.append(_create_result("ALTER_SHARE", obj_name, None, True, obj_info))
             elif "TAG" in stmt_clean:
                 match = re.search(r"TAG\s+(?:IF\s+EXISTS\s+)?([A-Z0-9_.\"]+)", stmt_clean)
                 obj_name = match.group(1) if match else None
                 obj_info = parse_object_name(obj_name) if obj_name else None
                 if obj_info:
                     obj_info["current_context"] = current_context.copy()
-                resultados.append(_create_result("ALTER_TAG", obj_name, None, True, object_info=obj_info))
+                resultados.append(_create_result("ALTER_TAG", obj_name, None, True, obj_info))
             elif "ACCESS_POLICY" in stmt_clean:
                 match = re.search(r"ACCESS\s+POLICY\s+(?:IF\s+EXISTS\s+)?([A-Z0-9_.\"]+)", stmt_clean)
                 obj_name = match.group(1) if match else None
-                resultados.append(_create_result("ALTER_ACCESS_POLICY", obj_name, None, True, object_info=obj_info))
+                obj_info = parse_object_name(obj_name) if obj_name else None
+                if obj_info:
+                    obj_info["current_context"] = current_context.copy()
+                resultados.append(_create_result("ALTER_ACCESS_POLICY", obj_name, None, True, obj_info))
 
         # DROP
         elif re.match(r"^DROP", stmt_clean):
@@ -333,7 +330,6 @@ def analizar_sql(path_sql: str):
             elif "SHARE" in stmt_clean: obj_type = "SHARE"
             elif "TAG" in stmt_clean: obj_type = "TAG"
             elif "ACCESS_POLICY" in stmt_clean: obj_type = "ACCESS_POLICY"
-            
 
             if obj_type:
                 match = re.search(fr"{obj_type}\s+([A-Z0-9_.\"]+)", stmt_clean)
@@ -341,7 +337,7 @@ def analizar_sql(path_sql: str):
                 obj_info = parse_object_name(obj_name) if obj_name else None
                 if obj_info:
                     obj_info["current_context"] = current_context.copy()
-                resultados.append(_create_result(f"DROP_{obj_type}", obj_name, None, True, object_info=obj_info))
+                resultados.append(_create_result(f"DROP_{obj_type}", obj_name, None, True, obj_info))
 
         # UNDROP
         elif re.match(r"^UNDROP", stmt_clean):
@@ -357,7 +353,7 @@ def analizar_sql(path_sql: str):
                 obj_info = parse_object_name(obj_name) if obj_name else None
                 if obj_info:
                     obj_info["current_context"] = current_context.copy()
-                resultados.append(_create_result(f"UNDROP_{obj_type}", obj_name, None, False, object_info=obj_info))
+                resultados.append(_create_result(f"UNDROP_{obj_type}", obj_name, None, False, obj_info))
 
         # TRUNCATE
         elif re.match(r"^TRUNCATE\s+TABLE", stmt_clean):
@@ -366,16 +362,17 @@ def analizar_sql(path_sql: str):
             obj_info = parse_object_name(obj_name) if obj_name else None
             if obj_info:
                 obj_info["current_context"] = current_context.copy()
-            resultados.append(_create_result("TRUNCATE_TABLE", obj_name, None, True, object_info=obj_info))
+            resultados.append(_create_result("TRUNCATE_TABLE", obj_name, None, True, obj_info))
         
         # INSERT DML
         elif re.match(r"^INSERT\s+INTO\s+([A-Z0-9_.\"]+)\s+VALUES", stmt_clean):
-            tabla = re.findall(r"INSERT\s+INTO\s+([A-Z0-9_.\"]+)+VALUES\s", stmt_clean)
+            tabla = re.findall(r"INSERT\s+INTO\s+([A-Z0-9_.\"]+)\s+VALUES", stmt_clean)
             obj_name = tabla[0] if tabla else None
             obj_info = parse_object_name(obj_name) if obj_name else None
             if obj_info:
                 obj_info["current_context"] = current_context.copy()
-            resultados.append(_create_result(accion="INSERT_VALUES", objeto=tabla[0] if tabla else None, columna=None, needs_lineage_check=True, object_info=obj_info))
+            resultados.append(_create_result(accion="INSERT_VALUES", objeto=obj_name, columna=None, 
+                                           needs_lineage_check=True, object_info=obj_info))
         
         # MERGE DML
         elif re.match(r"^MERGE\s+INTO", stmt_clean):
@@ -384,7 +381,8 @@ def analizar_sql(path_sql: str):
             obj_info = parse_object_name(obj_name) if obj_name else None
             if obj_info:
                 obj_info["current_context"] = current_context.copy()
-            resultados.append(_create_result(accion="MERGE_VALUES", objeto=tabla[0] if tabla else None, columna=None, needs_lineage_check=True, object_info=obj_info))
+            resultados.append(_create_result(accion="MERGE_VALUES", objeto=obj_name, columna=None, 
+                                           needs_lineage_check=True, object_info=obj_info))
 
         # DELETE DML
         elif re.match(r"^DELETE\s+FROM", stmt_clean):
@@ -393,7 +391,8 @@ def analizar_sql(path_sql: str):
             obj_info = parse_object_name(obj_name) if obj_name else None
             if obj_info:
                 obj_info["current_context"] = current_context.copy()
-            resultados.append(_create_result(accion="DELETE_VALUES", objeto=tabla[0] if tabla else None, columna=None, needs_lineage_check=True, object_info=obj_info))
+            resultados.append(_create_result(accion="DELETE_VALUES", objeto=obj_name, columna=None, 
+                                           needs_lineage_check=True, object_info=obj_info))
         
         # GRANT PRIVILEGES
         elif re.match(r"^GRANT\s+", stmt_clean):
@@ -403,19 +402,24 @@ def analizar_sql(path_sql: str):
                 obj_info = parse_object_name(obj_name) if obj_name else None
                 if obj_info:
                     obj_info["current_context"] = current_context.copy()
-                resultados.append(_create_result(accion="GRANT_PRIVILEGE", objeto=obj_name, columna=None, needs_lineage_check=True, object_info=obj_info))
+                resultados.append(_create_result(accion="GRANT_PRIVILEGE", objeto=obj_name, columna=None, 
+                                               needs_lineage_check=True, object_info=obj_info))
 
         # REVOKE PRIVILEGES
         elif re.match(r"^REVOKE\s+", stmt_clean):
-
             match = re.search(r"REVOKE\s+([A-Z_,\s]+)\s+ON\s+[A-Z_]+\s+([A-Z0-9_.\"]+)\s+FROM\s+(ROLE|USER)\s+([A-Z0-9_]+)", stmt_clean)
             if match:
-                resultados.append(_create_result(accion="REVOKE_PRIVILEGE", objeto=match.group(2), columna=None, needs_lineage_check=False, object_info=obj_info))
+                obj_name = match.group(2)
+                obj_info = parse_object_name(obj_name) if obj_name else None
+                if obj_info:
+                    obj_info["current_context"] = current_context.copy()
+                resultados.append(_create_result(accion="REVOKE_PRIVILEGE", objeto=obj_name, columna=None, 
+                                               needs_lineage_check=False, object_info=obj_info))
 
-        
     hay_riesgo = any(r["riesgo"] in ["MEDIA", "ALTA"] for r in resultados)
 
     return hay_riesgo, resultados
+
 
 def analizar_multiples_archivos(directorio: str = ".", patron: str = "*.sql", limite: int = 10) -> int:
     sql_files = []
@@ -438,37 +442,33 @@ def analizar_multiples_archivos(directorio: str = ".", patron: str = "*.sql", li
             riesgo, resultados = analizar_sql(sql_file)
             
             if resultados:
-                
                 if riesgo:
                     total_risk = True
                     risky_sentences = [r for r in resultados if r["riesgo"] in ["MEDIA", "ALTA"]]
                     risky_files.append({
-                    'file': sql_file,
-                    'sentences': risky_sentences
-                })
-               
-           
+                        'file': sql_file,
+                        'sentences': risky_sentences
+                    })
                 
         except Exception as e:
-            print(f" Error analizando {sql_file}: {str(e)}\n")
+            print(f"Error analizando {sql_file}: {str(e)}\n")
             return 1
     
     if total_risk:
         print("\nSe han detectado operaciones con riesgo")
-
         
         for archivo_info in risky_files:
             print(f"\nArchivo: {archivo_info['file']}")
             print(f"   Total de operaciones con riesgo: {len(archivo_info['sentences'])}\n")
             
             for i, sentence_info in enumerate(archivo_info['sentences'], 1):
-                
                 print(f"\n Operación {i} - Riesgo: {sentence_info['riesgo']}")
                 print(f"   Acción: {sentence_info['accion']}")
                 if sentence_info['objeto']:
                     print(f"   Objeto: {sentence_info['objeto']}")
                 if sentence_info['columna']:
                     print(f"   Columna: {sentence_info['columna']}")
+                
                 if 'object_info' in sentence_info and sentence_info['object_info']:
                     obj_info = sentence_info['object_info']
                     print(f"   Nivel de cualificación: {obj_info.get('qualification_level', 'N/A')}")
@@ -484,6 +484,7 @@ def analizar_multiples_archivos(directorio: str = ".", patron: str = "*.sql", li
     else:
         print("   No se detectaron operaciones de alto riesgo")
         return 0
+
 
 if __name__ == "__main__":
     if len(sys.argv) > 1:
@@ -506,4 +507,3 @@ if __name__ == "__main__":
     else:
         exit_code = analizar_multiples_archivos(".")
         sys.exit(exit_code)
-
