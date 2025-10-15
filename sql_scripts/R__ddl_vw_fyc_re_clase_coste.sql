@@ -1,0 +1,23 @@
+USE DATABASE DB_SIL_{{ environment }};
+USE SCHEMA MDM_CORPORATIVO;
+
+create or replace view VW_FYC_RE_CLASE_COSTE
+(
+    CO_CLASE_COSTE COMMENT 'Clase de coste',
+	DS_CLASE_COSTE COMMENT 'Descripción ',
+	DS_CLASE_COSTE_BREVE COMMENT 'Denominación general',
+	CO_PLAN_CONTABLE COMMENT 'Plan de cuentas',
+	CO_AREA_FUNCIONAL COMMENT 'Área funcional',
+	DT_ENTRADA COMMENT 'Fecha entrada'
+) COMMENT='Vista de Clases de Coste RE'
+ as 
+SELECT
+    CO_CLASE_COSTE,
+    DS_CLASE_COSTE,
+    DS_CLASE_COSTE_BREVE,
+    CO_PLAN_CONTABLE,
+    CO_AREA_FUNCIONAL,
+    DT_ENTRADA
+FROM
+	TB_RE_CLASE_COSTE
+;
