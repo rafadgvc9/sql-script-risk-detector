@@ -410,7 +410,7 @@ def analizar_sql(path_sql: str):
 
             match = re.search(r"REVOKE\s+([A-Z_,\s]+)\s+ON\s+[A-Z_]+\s+([A-Z0-9_.\"]+)\s+FROM\s+(ROLE|USER)\s+([A-Z0-9_]+)", stmt_clean)
             if match:
-                resultados.append(_create_result(accion="REVOKE_PRIVILEGE", objeto=match.group(2), columna=None, needs_lineage_check=False, obj_info))
+                resultados.append(_create_result(accion="REVOKE_PRIVILEGE", objeto=match.group(2), columna=None, needs_lineage_check=False, object_info=obj_info))
 
         
     hay_riesgo = any(r["riesgo"] in ["MEDIA", "ALTA"] for r in resultados)
