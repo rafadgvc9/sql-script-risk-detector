@@ -12,7 +12,7 @@ create or replace view VW_FYC_RE_CLASE_COSTE
 ) COMMENT='Vista de Clases de Coste RE'
  as 
 SELECT
-    CO_CLASE_COSTE,
+    CO_CLASE_COSTE, 
     DS_CLASE_COSTE,
     DS_CLASE_COSTE_BREVE,
     CO_PLAN_CONTABLE,

@@ -6,6 +6,14 @@ import os
 from pathlib import Path
 from typing import List, Dict, Any, Tuple, Optional, Callable
 
+# estas variables se deben de quitar, y se debe referenciar 
+TEMPLATE_VARIABLES = {
+    "current_environment": "DES",
+    "env": "DES",
+    "environment": "DES",
+    "region": "EU",
+    "project": "ECI"
+}
 
 # definicion de riesgos para cada accion
 RIESGO = {
@@ -81,6 +89,40 @@ RIESGO = {
     "USE_DATABASE": "BAJA",
     "USE_SCHEMA": "BAJA",
 }
+
+def resolve_template_variables(text: str, variables: Dict[str, str] = None) -> Tuple[str, List[str]]:
+    """
+    Detecta y reemplaza variables de template en formato {{ variable }} o {variable}
+    Retorna el texto resuelto y una lista de variables encontradas.
+    """
+    if variables is None:
+        variables = TEMPLATE_VARIABLES
+    
+    detected_vars = []
+    resolved_text = text
+    
+    pattern = r'\{\{?\s*([A-Za-z_][A-Za-z0-9_]*)\s*\}?\}'
+    
+    matches = re.finditer(pattern, text)
+    for match in matches:
+        var_name = match.group(1).lower()
+        detected_vars.append(var_name)
+        
+        # Buscar el valor en el diccionario (case-insensitive)
+        var_value = None
+        for key, value in variables.items():
+            if key.lower() == var_name:
+                var_value = value
+                break
+        
+        if var_value:
+            # Reemplazar la variable con su valor
+            resolved_text = resolved_text.replace(match.group(0), var_value)
+        else:
+            
+            print(f"   ADVERTENCIA: Variable '{{{{ {var_name} }}}}' no encontrada en configuración")
+    
+    return resolved_text, detected_vars
 
 
 # esta funcion debe cambiarse a la existente
@@ -162,6 +204,7 @@ def _create_result(accion: str, objeto: Optional[str], columna: Optional[str],
 # funcion principal para analizar todo el script 
 def analizar_sql(path_sql: str):
     sql_text = Path(path_sql).read_text()
+    resolved_sql, all_detected_vars = resolve_template_variables(sql_text, template_vars)
     statements = sqlparse.split(sql_text)
 
     current_context = {
