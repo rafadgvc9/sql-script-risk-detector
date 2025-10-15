@@ -25,7 +25,7 @@ ALTER TABLE db_example.gold.dim_where DROP COLUMN place_description;
 ALTER TABLE db_example.gold.dim_where ALTER COLUMN place_name TYPE VARCHAR(100);
 TRUNCATE TABLE db_example.gold.dim_where;
 UNDROP TABLE db_example.gold.dim_where;
-
+ 
 -- Vistas
 CREATE OR REPLACE MATERIALIZED VIEW db_example.gold.view_dim_who AS SELECT * FROM db_example.gold.dim_who;
 CREATE MATERIALIZED VIEW db_example.gold.view_dim_where AS SELECT id, nombre FROM db_example.gold.dim_where;

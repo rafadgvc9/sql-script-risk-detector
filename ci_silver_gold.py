@@ -477,8 +477,8 @@ def analizar_multiples_archivos(directorio: str = ".", patron: str = "*.sql", li
                     if obj_info.get('schema'):
                         print(f"   Schema explícito: {obj_info['schema']}")
                     ctx = obj_info.get('current_context', {})
-                        if ctx.get('database') or ctx.get('schema'):
-                            print(f"   Contexto activo -> Database: {ctx.get('database', 'N/A')}, Schema: {ctx.get('schema', 'N/A')}")
+                    if ctx.get('database') or ctx.get('schema'):
+                        print(f"   Contexto activo -> Database: {ctx.get('database', 'N/A')}, Schema: {ctx.get('schema', 'N/A')}")
                 
         return 1
     else:
