@@ -204,6 +204,23 @@ def _create_result(accion: str, objeto: Optional[str], columna: Optional[str],
     
     return result
 
+def extract_procedure_body(stmt_clean: str) -> Optional[str]:
+    """
+    Extrae el contenido de un procedimiento almacenado, delimitado por $$ o por comillas simples.
+    """
+
+    patterns = [
+        r"AS\s+\$\$\s*(.*?)\s*\$\$",
+        r"AS\s+'(.*?)'",
+    ]
+    
+    for pattern in patterns:
+        match = re.search(pattern, stmt_clean, re.DOTALL | re.IGNORECASE)
+        if match:
+            return match.group(1)
+    
+    return None
+
 
 def _handle_drop(stmt_clean: str, current_context: Dict, proc_context: Optional[str] = None) -> List[Dict[str, Any]]:
     """Handler para sentencias DROP."""
