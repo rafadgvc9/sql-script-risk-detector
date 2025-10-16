@@ -521,7 +521,7 @@ def analizar_sql(path_sql: str, template_vars: Dict[str, str] = None):
         if not stmt_clean:
             continue
 
-        if detect_stored_procedure(stmt_clean):
+        if re.match(r"^CREATE\s+(OR\s+REPLACE\s+)?PROCEDURE", stmt_clean):
             match = re.search(r"PROCEDURE\s+([A-Z0-9_.\"]+)\s*\(", stmt_clean)
             proc_name = match.group(1) if match else None
             
