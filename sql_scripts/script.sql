@@ -53,5 +53,5 @@ UNDROP TAG TAG_ANALYST;
 
 -- DML
 INSERT INTO db_example.gold.dim_where (id, nombre) VALUES (10, 'Nombre ejemplo');
-MERGE INTO db_example.gold.dim_who USING db_example.silver.who ON who.id = dim_who.id WHEN MATCHED THEN UPDATE SET username = dim_who.username;
+MERGE INTO db_example.|| environment ||.dim_who USING db_example.silver.who ON who.id = dim_who.id WHEN MATCHED THEN UPDATE SET username = dim_who.username;
 DELETE FROM db_example.gold.fct_transactions WHERE insertion_date < CURRENT_DATE() - 180;

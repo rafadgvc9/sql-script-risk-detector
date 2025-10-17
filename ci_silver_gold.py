@@ -129,6 +129,108 @@ def resolve_template_variables(text: str, variables: Dict[str, str] = None) -> T
     
     return resolved_text, detected_vars
 
+def normalize_dynamic_sql(sql_string: str, template_vars: Dict[str, str] = None) -> str:
+    """
+    Normaliza sentencias sql con concatenaciones de casteos de variables
+    """
+    if template_vars is None:
+        template_vars = TEMPLATE_VARIABLES
+    
+    vars_lower = {k.lower(): v for k, v in template_vars.items()}
+    
+    result = sql_string
+    max_iterations = 30
+    changed = True
+    iteration = 0
+    
+    # búsqueda de distintas posibles expresiones de una variable
+    while changed and iteration < max_iterations:
+        changed = False
+        iteration += 1
+        
+        # texto.|| var ||.texto  --> texto.valor.texto
+        match = re.search(r"([A-Za-z0-9_]+)\.\|\|\s*([A-Za-z_][A-Za-z0-9_]*)\s*\|\|\.([A-Za-z0-9_]+)", result, re.IGNORECASE)
+        if match:
+            prefix = match.group(1)
+            var_name = match.group(2)
+            suffix = match.group(3)
+            var_value = vars_lower.get(var_name.lower(), f"VAR_{var_name.upper()}")
+            combined = f"{prefix}.{var_value}.{suffix}"
+            result = result[:match.start()] + combined + result[match.end():]
+            changed = True
+            continue
+        
+        # texto.|| valor --> texto.valor
+        match = re.search(r"([A-Za-z0-9_]+)\.\|\|\s*([A-Za-z_][A-Za-z0-9_]*)\b", result, re.IGNORECASE)
+        if match:
+            prefix = match.group(1)
+            var_name = match.group(2)
+            var_value = vars_lower.get(var_name.lower(), f"VAR_{var_name.upper()}")
+            combined = f"{prefix}.{var_value}"
+            result = result[:match.start()] + combined + result[match.end():]
+            changed = True
+            continue
+        
+        # valor ||.texto --> valor.texto
+        match = re.search(r"\b([A-Za-z_][A-Za-z0-9_]*)\s*\|\|\.([A-Za-z0-9_]+)", result, re.IGNORECASE)
+        if match:
+            var_name = match.group(1)
+            suffix = match.group(2)
+            var_value = vars_lower.get(var_name.lower(), f"VAR_{var_name.upper()}")
+            combined = f"{var_value}.{suffix}"
+            result = result[:match.start()] + combined + result[match.end():]
+            changed = True
+            continue
+        
+        # 'texto' || var || 'texto' --> textovalortexto
+        match = re.search(r"'([^']*)'\s*\|\|\s*([A-Za-z_][A-Za-z0-9_]*)\s*\|\|\s*'([^']*)'", result, re.IGNORECASE)
+        if match:
+            prefix = match.group(1)
+            var_name = match.group(2)
+            suffix = match.group(3)
+            var_value = vars_lower.get(var_name.lower(), f"VAR_{var_name.upper()}")
+            combined = f"'{prefix}{var_value}{suffix}'"
+            result = result[:match.start()] + combined + result[match.end():]
+            changed = True
+            continue
+        
+        # texto' || var || 'texto --> textovalortexto
+        match = re.search(r"([A-Za-z0-9_]+)'(\s*\|\|\s*)([A-Za-z_][A-Za-z0-9_]*)(\s*\|\|\s*)'([^']*)'", result, re.IGNORECASE)
+        if match:
+            prefix = match.group(1)  
+            var_name = match.group(3)  
+            suffix = match.group(5)
+            var_value = vars_lower.get(var_name.lower(), f"VAR_{var_name.upper()}")
+            combined = f"{prefix}{var_value}{suffix}"
+            result = result[:match.start()] + combined + result[match.end():]
+            changed = True
+            continue
+
+        # 'texto' || var --> textovalor
+        match = re.search(r"'([^']*)'\s*\|\|\s*([A-Za-z_][A-Za-z0-9_]*)\b", result, re.IGNORECASE)
+        if match:
+            prefix = match.group(1)
+            var_name = match.group(2)
+            var_value = vars_lower.get(var_name.lower(), f"VAR_{var_name.upper()}")
+            combined = f"'{prefix}{var_value}'"
+            result = result[:match.start()] + combined + result[match.end():]
+            changed = True
+            continue
+
+        # var || 'texto' --> valortexto
+        match = re.search(r"\b([A-Za-z_][A-Za-z0-9_]*)\s*\|\|\s*'([^']*)'", result, re.IGNORECASE)
+        if match:
+            var_name = match.group(1)
+            suffix = match.group(2)
+            var_value = vars_lower.get(var_name.lower(), f"VAR_{var_name.upper()}")
+            combined = f"'{var_value}{suffix}'"
+            result = result[:match.start()] + combined + result[match.end():]
+            changed = True
+            continue
+    
+    return result
+
+
 # esta funcion debe cambiarse a la existente
 def get_object_lineage():
     return random.choice([True, False])
@@ -221,6 +323,40 @@ def extract_procedure_body(stmt_clean: str) -> Optional[str]:
     
     return None
 
+def extract_sql_from_variables(proc_body: str, template_vars: Dict[str, str] = None) -> List[str]:
+    """
+    Extrae sentencias SQL asignadas a variables en procedimientos de Snowflake
+    """
+    sql_statements = []
+    
+    # Patrones para diferentes tipos de delimitadores
+    patterns = [
+        # comillas simples
+        r"[A-Za-z_][A-Za-z0-9_]*\s*:=\s*'(.*?)'",      
+        # comillas dobles
+        r'[A-Za-z_][A-Za-z0-9_]*\s*:=\s*"(.*?)"',      
+        # $$
+        r"[A-Za-z_][A-Za-z0-9_]*\s*:=\s*\$\$(.*?)\$\$", 
+    ]
+    
+    for pattern in patterns:
+        matches = re.finditer(pattern, proc_body, re.DOTALL | re.IGNORECASE)
+        
+        for match in matches:
+            sql_content = match.group(1).strip()
+            
+            # comprobar que el contenido de la variable contiene sentencias sql
+            sql_keywords = ['SELECT', 'INSERT', 'UPDATE', 'DELETE', 'MERGE', 
+                           'CREATE', 'DROP', 'ALTER', 'TRUNCATE', 'GRANT', 
+                           'REVOKE', 'WITH']
+            
+            sql_upper = sql_content.upper()
+            
+            if any(keyword in sql_upper for keyword in sql_keywords):
+                normalized_sql = normalize_dynamic_sql(sql_content, template_vars)
+                sql_statements.append(normalized_sql)
+    
+    return sql_statements
 
 def _handle_drop(stmt_clean: str, current_context: Dict, proc_context: Optional[str] = None) -> List[Dict[str, Any]]:
     """Handler para sentencias DROP."""
@@ -375,8 +511,11 @@ def _handle_delete(stmt_clean: str, current_context: Dict, proc_context: Optiona
 
 def _handle_merge(stmt_clean: str, current_context: Dict, proc_context: Optional[str] = None) -> List[Dict[str, Any]]:
     """Handler para MERGE."""
-    match = re.search(r"MERGE\s+INTO\s+([A-Z0-9_.\"]+)(?=\s+(?:AS|USING)|\s*$)", stmt_clean)
+    match = re.search(r"MERGE\s+INTO\s+([A-Z0-9_.\"]+)(?:\s+(?:AS\s+)?[A-Z0-9_\"]+)?\s+USING", stmt_clean, re.IGNORECASE)
+    if not match:
+        match = re.search(r"MERGE\s+INTO\s+([A-Z0-9_.\"]+)", stmt_clean, re.IGNORECASE)
     obj_name = match.group(1) if match else None
+    print(f"Nombre de objeto detectado: {obj_name}")
     obj_info = parse_object_name(obj_name) if obj_name else None
     
     if obj_info:
@@ -533,18 +672,46 @@ def analizar_sql(path_sql: str, template_vars: Dict[str, str] = None):
         # se eliminan los comentarios de las sentencias para evitar que se interpreten comentarios como parte de la sentencia
         lines = stmt.strip().split('\n')
         cleaned_lines = [line for line in lines if not line.strip().startswith('--')]
+        stmt_uncommented = '\n'.join(cleaned_lines).strip()
+        stmt_normalized = normalize_dynamic_sql(stmt_uncommented, template_vars)
         stmt_clean = '\n'.join(cleaned_lines).strip().upper()
+        stmt_clean = stmt_normalized.upper()
         
         if not stmt_clean:
             continue
+        
+        
 
         if re.match(r"^CREATE\s+(OR\s+REPLACE\s+)?PROCEDURE", stmt_clean):
             match = re.search(r"PROCEDURE\s+([A-Z0-9_.\"]+)\s*\(", stmt_clean)
             proc_name = match.group(1) if match else None
             
-            # extraer las sentencias del procedimiento 
+            # extrae las sentencias del procedimiento 
             proc_body = extract_procedure_body(stmt_clean)
             if proc_body:
+                
+                # pasa por todas las variables de texto por si tienen sentencias guardadas
+                variable_sqls = extract_sql_from_variables(proc_body, template_vars)
+                for var_sql in variable_sqls:
+                    # analiza cada sentencia que tenga la variable
+                    var_sql_statements = sqlparse.split(var_sql)
+                    
+                    for var_stmt in var_sql_statements:
+                        var_lines = var_stmt.strip().split('\n')
+                        var_cleaned = [l for l in var_lines if not l.strip().startswith('--')]
+                        var_stmt_clean = '\n'.join(var_cleaned).strip().upper()
+                        
+                        if var_stmt_clean:
+                            var_results = procesar_sentencia(var_stmt_clean, current_context, proc_name)
+                            
+                            # marcar cada resultado como que viene de una variable
+                            for result in var_results:
+                                if result.get('object_info'):
+                                    result['object_info']['from_variable'] = True
+                            
+                            resultados.extend(var_results)
+
+
                 inner_statements = sqlparse.split(proc_body)
                 
                 for inner_stmt in inner_statements:
@@ -553,15 +720,24 @@ def analizar_sql(path_sql: str, template_vars: Dict[str, str] = None):
                     inner_stmt_clean = '\n'.join(inner_cleaned).strip().upper()
                     
                     if inner_stmt_clean:
-                        # pasar por todas las sentencias del procedure
-                        inner_results = procesar_sentencia(inner_stmt_clean, current_context, proc_name)
-                        resultados.extend(inner_results)
+                        # pasar por todas las sentencias del procedure que no hayan sido procesadas en las variables
+                        if not re.match(r"[A-Z_][A-Z0-9_]*\s*:=\s*'", inner_stmt_clean):
+                            inner_results = procesar_sentencia(inner_stmt_clean, current_context, proc_name)
+                            resultados.extend(inner_results)
             
-            # registrar la creacion del procedure
+            accion_procedure = "CREATE_PROCEDURE"
+            needs_lineage = False
+            
+            if "OR REPLACE" in stmt_clean:
+                accion_procedure = "CREATE_OR_REPLACE_PROCEDURE"
+                needs_lineage = True
+            
+            # registrar la creación del procedure
             obj_info = parse_object_name(proc_name) if proc_name else None
             if obj_info:
                 obj_info["current_context"] = current_context.copy()
-            resultados.append(_create_result("CREATE_PROCEDURE", proc_name, None, False, obj_info))
+            
+            resultados.append(_create_result(accion_procedure, proc_name, None, needs_lineage, obj_info))
         else:
             # procesamiento de sentencia normal
             stmt_results = procesar_sentencia(stmt_clean, current_context)
@@ -641,6 +817,10 @@ def analizar_multiples_archivos(archivos_sql: List[str] = None,
                         print(f"   Database explícita: {obj_info['database']}")
                     if obj_info.get('schema'):
                         print(f"   Schema explícito: {obj_info['schema']}")
+                    if obj_info.get('inside_procedure'):
+                        print(f"   Dentro del procedimiento: {obj_info['inside_procedure']}")
+                    if obj_info.get('from_variable'):
+                        print(f"   Origen: Asignación de variable")
                     ctx = obj_info.get('current_context', {})
                     if ctx.get('database') or ctx.get('schema'):
                         print(f"   Contexto activo -> Database: {ctx.get('database', 'N/A')}, Schema: {ctx.get('schema', 'N/A')}")

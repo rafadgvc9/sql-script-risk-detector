@@ -20,4 +20,4 @@ SELECT
     DT_ENTRADA
 FROM
 	TB_RE_CLASE_COSTE
-;  
+;   
