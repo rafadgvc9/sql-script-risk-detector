@@ -36,6 +36,7 @@ DROP VIEW db_example.gold.dim_where_view;
 CREATE OR ALTER WAREHOUSE wh_compute;
 CREATE WAREHOUSE wh_bi;
 ALTER WAREHOUSE wh_compute SET WAREHOUSE_SIZE='LARGE';
+USE WAREHOUSE wh_bi;
 DROP WAREHOUSE wh_bi;
 
 -- Shares
@@ -55,3 +56,45 @@ UNDROP TAG TAG_ANALYST;
 INSERT INTO db_example.gold.dim_where (id, nombre) VALUES (10, 'Nombre ejemplo');
 MERGE INTO db_example.|| environment ||.dim_who USING db_example.silver.who ON who.id = dim_who.id WHEN MATCHED THEN UPDATE SET username = dim_who.username;
 DELETE FROM db_example.gold.fct_transactions WHERE insertion_date < CURRENT_DATE() - 180;
+
+
+-- Procedure
+ALTER PROCEDURE db_example.gold.proc_replace() SET COMMENT = 'Comento';
+DROP PROCEDURE IF EXISTS db_example.gold.proc_simple();
+
+
+-- Resource Monitors
+CREATE RESOURCE MONITOR rm_compute
+  WITH CREDIT_QUOTA = 100
+  FREQUENCY = 'MONTHLY'
+  START_TIMESTAMP = IMMEDIATELY;
+
+ALTER RESOURCE MONITOR rm_compute
+SET CREDIT_QUOTA = 200;
+
+CREATE OR REPLACE RESOURCE MONITOR rm_replaced
+  WITH CREDIT_QUOTA = 50
+  FREQUENCY = 'DAILY';
+
+DROP RESOURCE MONITOR IF EXISTS rm_compute;
+
+
+-- Task
+CREATE TASK db_example.gold.task_refresh
+  WAREHOUSE = wh_compute
+  SCHEDULE = 'USING CRON 0 * * * * UTC'
+AS
+  CALL db_example.gold.proc_replace();
+
+ALTER TASK db_example.gold.task_refresh SET SCHEDULE = 'USING CRON 15 * * * * UTC';
+
+EXECUTE TASK db_example.gold.task_refresh;
+
+CREATE OR REPLACE TASK db_example.gold.task_replaced
+  WAREHOUSE = wh_compute
+  SCHEDULE = 'USING CRON 0 0 * * * UTC'
+AS
+  INSERT INTO db_example.gold.dim_where VALUES (2, 'task test');
+
+DROP TASK IF EXISTS db_example.gold.task_refresh;
+

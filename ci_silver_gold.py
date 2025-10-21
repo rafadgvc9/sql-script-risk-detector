@@ -27,7 +27,7 @@ RIESGO = {
     "ALTER_TABLE_NOT_COLUMNS": ("ALTA", "MEDIA"),     
 
     # DML
-    "INSERT_VALUES": ("MEDIA", "BAJA"),                      
+    "INSERT_VALUES": ("MEDIA", "MEDIA"),                      
     "DELETE_VALUES": ("ALTA", "MEDIA"),                       
     "MERGE_VALUES": ("MEDIA", "MEDIA"),                       
 
@@ -49,9 +49,11 @@ RIESGO = {
 
     # WAREHOUSE
     "CREATE_WAREHOUSE": "BAJA", 
+    "CREATE_OR_REPLACE_WAREHOUSE": ("ALTA", "MEDIA"),
     "ALTER_WAREHOUSE": "ALTA",
-    "CREATE_OR_ALTER_WAREHOUSE": "ALTA",
+    "CREATE_OR_ALTER_WAREHOUSE": ("ALTA", "MEDIA"),
     "DROP_WAREHOUSE": "ALTA",
+    "USE_WAREHOUSE": "BAJA",
 
     # SHARE
     "CREATE_SHARE": "BAJA", 
@@ -94,6 +96,20 @@ RIESGO = {
     "DROP_PROCEDURE": "ALTA",
     "ALTER_PROCEDURE": "MEDIA",
     "CREATE_OR_REPLACE_PROCEDURE": ("ALTA", "MEDIA"),
+    "CALL_PROCEDURE" : "ALTA",
+
+    # TASK
+    "CREATE_TASK": "BAJA",
+    "DROP_TASK": "ALTA",
+    "ALTER_TASK": "MEDIA",
+    "EXECUTE_TASK": "ALTA",
+    "CREATE_OR_REPLACE_TASK": ("ALTA", "MEDIA"),
+
+    # RESOURCE MONITOR
+    "CREATE_RESOURCE_MONITOR": "BAJA",
+    "DROP_RESOURCE_MONITOR": "ALTA",
+    "ALTER_RESOURCE_MONITOR": "MEDIA",
+    "CREATE_OR_REPLACE_RESOURCE_MONITOR": ("ALTA", "MEDIA"),
 }
 
 def resolve_template_variables(text: str, variables: Dict[str, str] = None) -> Tuple[str, List[str]]:
@@ -358,6 +374,7 @@ def extract_sql_from_variables(proc_body: str, template_vars: Dict[str, str] = N
     
     return sql_statements
 
+
 def _handle_drop(stmt_clean: str, current_context: Dict, proc_context: Optional[str] = None) -> List[Dict[str, Any]]:
     """Handler para sentencias DROP."""
     obj_type = ""
@@ -369,11 +386,14 @@ def _handle_drop(stmt_clean: str, current_context: Dict, proc_context: Optional[
     elif "SHARE" in stmt_clean: obj_type = "SHARE"
     elif "TAG" in stmt_clean: obj_type = "TAG"
     elif "ACCESS_POLICY" in stmt_clean: obj_type = "ACCESS_POLICY"
+    elif "TASK" in stmt_clean: obj_type = "TASK"
+    elif "RESOURCE MONITOR" in stmt_clean: obj_type = "RESOURCE_MONITOR"
+    elif "PROCEDURE" in stmt_clean: obj_type = "PROCEDURE"
     
     if not obj_type:
         return []
     
-    match = re.search(fr"{obj_type}\s+(?:IF\s+EXISTS\s+)?([A-Z0-9_.\"]+)(?=\s*;|\s*$)", stmt_clean)
+    match = re.search(fr"{obj_type.replace('_', ' ')}\s+(?:IF\s+EXISTS\s+)?([A-Z0-9_.\"]+)", stmt_clean)
     obj_name = match.group(1) if match else None
     obj_info = parse_object_name(obj_name) if obj_name else None
     
@@ -384,18 +404,19 @@ def _handle_drop(stmt_clean: str, current_context: Dict, proc_context: Optional[
     
     return [_create_result(f"DROP_{obj_type}", obj_name, None, True, obj_info)]
 
-
 def _handle_create(stmt_clean: str, current_context: Dict, proc_context: Optional[str] = None) -> List[Dict[str, Any]]:
     """Handler para sentencias CREATE."""
     obj_type = ""
     if "VIEW" in stmt_clean: obj_type = "VIEW"
     elif "TABLE" in stmt_clean: obj_type = "TABLE"
+    elif "TASK" in stmt_clean: obj_type = "TASK"
     elif "SCHEMA" in stmt_clean: obj_type = "SCHEMA"
     elif "DATABASE" in stmt_clean: obj_type = "DATABASE"
     elif "WAREHOUSE" in stmt_clean: obj_type = "WAREHOUSE"
     elif "SHARE" in stmt_clean: obj_type = "SHARE"
     elif "TAG" in stmt_clean: obj_type = "TAG"
     elif "ACCESS_POLICY" in stmt_clean: obj_type = "ACCESS_POLICY"
+    elif "RESOURCE MONITOR" in stmt_clean: obj_type = "RESOURCE_MONITOR"
     
     if not obj_type:
         return []
@@ -410,7 +431,7 @@ def _handle_create(stmt_clean: str, current_context: Dict, proc_context: Optiona
         accion_base = f"CREATE_OR_ALTER_{obj_type}"
         needs_lineage_check = True
     
-    match = re.search(fr"{obj_type}\s+(?:IF\s+NOT\s+EXISTS\s+)?([A-Z0-9_.\"]+?)(?=\s*\(|\s+COMMENT|\s+AS|\s*;)", stmt_clean)
+    match = re.search(fr"{obj_type.replace('_', ' ')}\s+(?:IF\s+NOT\s+EXISTS\s+)?([A-Z0-9_.\"]+)", stmt_clean)
     obj_name = match.group(1) if match else None
     obj_info = parse_object_name(obj_name) if obj_name else None
     
@@ -420,7 +441,6 @@ def _handle_create(stmt_clean: str, current_context: Dict, proc_context: Optiona
             obj_info["inside_procedure"] = proc_context
     
     return [_create_result(accion_base, obj_name, None, needs_lineage_check, obj_info)]
-
 
 def _handle_alter_table(stmt_clean: str, current_context: Dict, proc_context: Optional[str] = None) -> List[Dict[str, Any]]:
     """Handler específico para ALTER TABLE."""
@@ -448,7 +468,6 @@ def _handle_alter_table(stmt_clean: str, current_context: Dict, proc_context: Op
     else:
         return [_create_result("ALTER_TABLE_NOT_COLUMNS", tabla, None, True, obj_info)]
 
-
 def _handle_alter(stmt_clean: str, current_context: Dict, proc_context: Optional[str] = None) -> List[Dict[str, Any]]:
     """Handler para sentencias ALTER."""
     if "TABLE" in stmt_clean:
@@ -462,7 +481,10 @@ def _handle_alter(stmt_clean: str, current_context: Dict, proc_context: Optional
         "WAREHOUSE": "ALTER_WAREHOUSE",
         "SHARE": "ALTER_SHARE",
         "TAG": "ALTER_TAG",
-        "ACCESS_POLICY": "ALTER_ACCESS_POLICY"
+        "ACCESS_POLICY": "ALTER_ACCESS_POLICY",
+        "TASK": "ALTER_TASK",
+        "RESOURCE MONITOR": "ALTER_RESOURCE_MONITOR",
+        "PROCEDURE": "ALTER_PROCEDURE"
     }
     
     for obj_keyword, action in obj_type_map.items():
@@ -480,10 +502,10 @@ def _handle_alter(stmt_clean: str, current_context: Dict, proc_context: Optional
     
     return []
 
-
 def _handle_insert(stmt_clean: str, current_context: Dict, proc_context: Optional[str] = None) -> List[Dict[str, Any]]:
     """Handler para INSERT."""
     match = re.search(r"INSERT\s+INTO\s+([A-Z0-9_.\"]+)(?=\s*[\(]|\s+VALUES)", stmt_clean)
+    print (match.group)
     obj_name = match.group(1) if match else None
     obj_info = parse_object_name(obj_name) if obj_name else None
     
@@ -493,7 +515,6 @@ def _handle_insert(stmt_clean: str, current_context: Dict, proc_context: Optiona
             obj_info["inside_procedure"] = proc_context
     
     return [_create_result("INSERT_VALUES", obj_name, None, True, obj_info)]
-
 
 def _handle_delete(stmt_clean: str, current_context: Dict, proc_context: Optional[str] = None) -> List[Dict[str, Any]]:
     """Handler para DELETE."""
@@ -507,7 +528,6 @@ def _handle_delete(stmt_clean: str, current_context: Dict, proc_context: Optiona
             obj_info["inside_procedure"] = proc_context
     
     return [_create_result("DELETE_VALUES", obj_name, None, True, obj_info)]
-
 
 def _handle_merge(stmt_clean: str, current_context: Dict, proc_context: Optional[str] = None) -> List[Dict[str, Any]]:
     """Handler para MERGE."""
@@ -525,7 +545,6 @@ def _handle_merge(stmt_clean: str, current_context: Dict, proc_context: Optional
     
     return [_create_result("MERGE_VALUES", obj_name, None, True, obj_info)]
 
-
 def _handle_truncate(stmt_clean: str, current_context: Dict, proc_context: Optional[str] = None) -> List[Dict[str, Any]]:
     """Handler para TRUNCATE."""
     match = re.search(r"TABLE\s+([A-Z0-9_.\"]+)(?=\s*;|\s*$)", stmt_clean)
@@ -538,7 +557,6 @@ def _handle_truncate(stmt_clean: str, current_context: Dict, proc_context: Optio
             obj_info["inside_procedure"] = proc_context
     
     return [_create_result("TRUNCATE_TABLE", obj_name, None, True, obj_info)]
-
 
 def _handle_undrop(stmt_clean: str, current_context: Dict, proc_context: Optional[str] = None) -> List[Dict[str, Any]]:
     """Handler para UNDROP."""
@@ -562,7 +580,6 @@ def _handle_undrop(stmt_clean: str, current_context: Dict, proc_context: Optiona
     
     return [_create_result(f"UNDROP_{obj_type}", obj_name, None, False, obj_info)]
 
-
 def _handle_grant(stmt_clean: str, current_context: Dict, proc_context: Optional[str] = None) -> List[Dict[str, Any]]:
     """Handler para GRANT."""
     match = re.search(r"GRANT\s+([A-Z_,\s]+)\s+ON\s+[A-Z_]+\s+([A-Z0-9_.\"]+)(?=\s+TO)", stmt_clean)
@@ -579,7 +596,6 @@ def _handle_grant(stmt_clean: str, current_context: Dict, proc_context: Optional
     
     return [_create_result("GRANT_PRIVILEGE", obj_name, None, True, obj_info)]
 
-
 def _handle_revoke(stmt_clean: str, current_context: Dict, proc_context: Optional[str] = None) -> List[Dict[str, Any]]:
     """Handler para REVOKE."""
     match = re.search(r"REVOKE\s+([A-Z_,\s]+)\s+ON\s+[A-Z_]+\s+([A-Z0-9_.\"]+)(?=\s+FROM)", stmt_clean)
@@ -595,7 +611,6 @@ def _handle_revoke(stmt_clean: str, current_context: Dict, proc_context: Optiona
             obj_info["inside_procedure"] = proc_context
     
     return [_create_result("REVOKE_PRIVILEGE", obj_name, None, False, obj_info)]
-
 
 def _handle_use(stmt_clean: str, current_context: Dict, proc_context: Optional[str] = None) -> List[Dict[str, Any]]:
     """Handler para USE DATABASE/SCHEMA."""
@@ -639,6 +654,44 @@ def _handle_use(stmt_clean: str, current_context: Dict, proc_context: Optional[s
     
     return []
 
+def _handle_execute(stmt_clean: str, current_context: Dict, proc_context: Optional[str] = None) -> List[Dict[str, Any]]:
+    """Handler para EXECUTE."""
+    match_task = re.search(r"EXECUTE\s+TASK\s+([A-Z0-9_.\"]+)", stmt_clean, re.IGNORECASE)
+    if match_task:
+        obj_name = match_task.group(1)
+        obj_info = parse_object_name(obj_name)
+        if obj_info:
+            obj_info["current_context"] = current_context.copy()
+            if proc_context:
+                obj_info["inside_procedure"] = proc_context
+        return [_create_result("EXECUTE_TASK", obj_name, None, False, obj_info)]
+    
+    match_proc = re.search(r"EXECUTE\s+([A-Z0-9_.\"]+)\s*\(", stmt_clean, re.IGNORECASE)
+    if match_proc:
+        obj_name = match_proc.group(1)
+        obj_info = parse_object_name(obj_name)
+        if obj_info:
+            obj_info["current_context"] = current_context.copy()
+            if proc_context:
+                obj_info["inside_procedure"] = proc_context
+        return [_create_result("EXECUTE_PROCEDURE", obj_name, None, False, obj_info)]
+    
+    return []
+
+def _handle_call(stmt_clean: str, current_context: Dict, proc_context: Optional[str] = None) -> List[Dict[str, Any]]:
+    """Handler para CALL."""
+    match = re.search(r"CALL\s+PROCEDURE\s+([A-Z0-9_.\"]+)(?=\s*;|\s*$)", stmt_clean)
+    print(stmt_clean)
+    obj_name = match.group(1) if match else None
+    obj_info = parse_object_name(obj_name) if obj_name else None
+    
+    if obj_info:
+        obj_info["current_context"] = current_context.copy()
+        if proc_context:
+            obj_info["inside_procedure"] = proc_context
+    
+    return [_create_result("CALL_PROCEDURE", obj_name, None, True, obj_info)]
+
 
 STATEMENT_HANDLERS = [
     (r"^USE\s+", _handle_use),
@@ -652,6 +705,8 @@ STATEMENT_HANDLERS = [
     (r"^DELETE\s+FROM", _handle_delete),
     (r"^GRANT\s+", _handle_grant),
     (r"^REVOKE\s+", _handle_revoke),
+    (r"^EXECUTE\s+", _handle_execute),
+    (r"^CALL\s+", _handle_call),
 ]
 
 # funcion principal para analizar todo el script 
