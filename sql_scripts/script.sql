@@ -7,7 +7,9 @@ CREATE DATABASE db_tmp;
 ALTER DATABASE db_example SET DATA_RETENTION_TIME_IN_DAYS=1;
 DROP DATABASE db_tmp;
 UNDROP DATABASE db_tmp; 
- 
+ /*
+ hola
+ */
 -- Schemas
 CREATE OR REPLACE SCHEMA db_example.silver;
 CREATE SCHEMA db_example.geld;

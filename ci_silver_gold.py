@@ -6,14 +6,6 @@ import os
 from pathlib import Path
 from typing import List, Dict, Any, Tuple, Optional, Callable
 
-# estas variables se deben de quitar, y se debe referenciar 
-TEMPLATE_VARIABLES = {
-    "current_environment": "PRO",
-    "env": "PRO",
-    "environment": "PRO",
-    "region": "EU",
-    "project": "ECI"
-}
 
 # definicion de riesgos para cada accion
 RIESGO = {
@@ -53,7 +45,7 @@ RIESGO = {
     "ALTER_WAREHOUSE": "ALTA",
     "CREATE_OR_ALTER_WAREHOUSE": ("ALTA", "MEDIA"),
     "DROP_WAREHOUSE": "ALTA",
-    "USE_WAREHOUSE": "BAJA",
+    "USE_WAREHOUSE": ("ALTA", "BAJA"),
 
     # SHARE
     "CREATE_SHARE": "BAJA", 
@@ -112,15 +104,63 @@ RIESGO = {
     "CREATE_OR_REPLACE_RESOURCE_MONITOR": ("ALTA", "MEDIA"),
 }
 
+def set_template_variables():
+    """
+    Establece las variables de template globales.
+    """
+    vars_dict: Dict[str, str] = {}
+
+    for k, v in os.environ.items():
+        if isinstance(v, str) and v:
+            vars_dict[k] = v
+
+    app_env = os.environ.get('APP_ENV') or os.environ.get('ENV') or os.environ.get('environment')
+    if app_env:
+        vars_dict.setdefault('APP_ENV', app_env)
+        vars_dict.setdefault('env', app_env)
+        vars_dict.setdefault('environment', app_env)
+
+    if 'REGION' in os.environ:
+        vars_dict.setdefault('region', os.environ.get('REGION'))
+    if 'PROJECT' in os.environ:
+        vars_dict.setdefault('project', os.environ.get('PROJECT'))
+
+    if 'env' in vars_dict and isinstance(vars_dict['env'], str):
+        vars_dict['env'] = vars_dict['env'].upper()
+
+    return vars_dict
+
+
+def _gather_placeholders_from_text(text: str) -> List[str]:
+    """Extrae nombres de variables encontrados en texto con patrones {{ var }} o {var}.
+    Retorna nombres en minúscula.
+    """
+    pattern = r'\{\{?\s*([A-Za-z_][A-Za-z0-9_]*)\s*\}?\}'
+    return [m.group(1).lower() for m in re.finditer(pattern, text)]
+
+
+def gather_placeholders_from_files(paths: List[str]) -> List[str]:
+    """Escanea archivos y devuelve la lista única de placeholders encontrados."""
+    found = set()
+    for p in paths:
+        try:
+            txt = Path(p).read_text()
+        except Exception:
+            continue
+        for name in _gather_placeholders_from_text(txt):
+            found.add(name)
+    return sorted(found)
+
 def resolve_template_variables(text: str, variables: Dict[str, str] = None) -> Tuple[str, List[str]]:
     """
     Detecta y reemplaza variables de template en formato {{ variable }} o {variable}
     Retorna el texto resuelto y una lista de variables encontradas.
     """
     if variables is None:
-        variables = TEMPLATE_VARIABLES
+        variables = set_template_variables()
     
     detected_vars = []
+    missing_vars = []
     resolved_text = text
     
     pattern = r'\{\{?\s*([A-Za-z_][A-Za-z0-9_]*)\s*\}?\}'
@@ -135,12 +175,11 @@ def resolve_template_variables(text: str, variables: Dict[str, str] = None) -> T
             if key.lower() == var_name:
                 var_value = value
                 break
-        
-        if var_value:
-            # Reemplazar la variable con su valor
-            resolved_text = resolved_text.replace(match.group(0), var_value)
+
+        if var_value is not None:
+            resolved_text = resolved_text.replace(match.group(0), str(var_value))
         else:
-            
+            missing_vars.append(var_name)
             print(f"   ADVERTENCIA: Variable '{{{{ {var_name} }}}}' no encontrada en configuración")
     
     return resolved_text, detected_vars
@@ -150,7 +189,7 @@ def normalize_dynamic_sql(sql_string: str, template_vars: Dict[str, str] = None)
     Normaliza sentencias sql con concatenaciones de casteos de variables
     """
     if template_vars is None:
-        template_vars = TEMPLATE_VARIABLES
+        template_vars = set_template_variables()
     
     vars_lower = {k.lower(): v for k, v in template_vars.items()}
     
@@ -247,8 +286,11 @@ def normalize_dynamic_sql(sql_string: str, template_vars: Dict[str, str] = None)
     return result
 
 
-# esta funcion debe cambiarse a la existente
-def get_object_lineage():
+# estas funciones deben cambiarse a las existentes
+def has_object_lineage():
+    return random.choice([True, False])
+
+def is_warehouse_xs():
     return random.choice([True, False])
 
 
@@ -300,7 +342,7 @@ def _create_result(accion: str, objeto: Optional[str], columna: Optional[str],
     
     if isinstance(riesgo_base, tuple) and needs_lineage_check:
         riesgo_con_linaje, riesgo_sin_linaje = riesgo_base
-        if get_object_lineage():
+        if has_object_lineage():
             riesgo_final = riesgo_con_linaje  
         else:
             riesgo_final = riesgo_sin_linaje 
@@ -505,7 +547,6 @@ def _handle_alter(stmt_clean: str, current_context: Dict, proc_context: Optional
 def _handle_insert(stmt_clean: str, current_context: Dict, proc_context: Optional[str] = None) -> List[Dict[str, Any]]:
     """Handler para INSERT."""
     match = re.search(r"INSERT\s+INTO\s+([A-Z0-9_.\"]+)(?=\s*[\(]|\s+VALUES)", stmt_clean)
-    print (match.group)
     obj_name = match.group(1) if match else None
     obj_info = parse_object_name(obj_name) if obj_name else None
     
@@ -535,7 +576,6 @@ def _handle_merge(stmt_clean: str, current_context: Dict, proc_context: Optional
     if not match:
         match = re.search(r"MERGE\s+INTO\s+([A-Z0-9_.\"]+)", stmt_clean, re.IGNORECASE)
     obj_name = match.group(1) if match else None
-    print(f"Nombre de objeto detectado: {obj_name}")
     obj_info = parse_object_name(obj_name) if obj_name else None
     
     if obj_info:
@@ -642,6 +682,24 @@ def _handle_use(stmt_clean: str, current_context: Dict, proc_context: Optional[s
                                    "database": current_context["database"],
                                    "schema": current_context["schema"]})]
     
+    # USE WAREHOUSE
+    elif re.match(r"^USE\s+WAREHOUSE\s", stmt_clean):
+        match = re.search(r"USE\s+WAREHOUSE\s+([A-Z0-9_.\"]+)", stmt_clean)
+        if match:
+            warehouse_name = match.group(1).strip('"').strip("'")
+            current_context["warehouse"] = warehouse_name
+            risk_level = "ALTA"
+            if is_warehouse_xs():
+                risk_level = "BAJA"
+
+            obj_info = parse_object_name(warehouse_name) if warehouse_name else None
+    
+            if obj_info:
+                obj_info["current_context"] = current_context.copy()
+                if proc_context:
+                    obj_info["inside_procedure"] = proc_context
+            return [_create_result("USE_WAREHOUSE", warehouse_name, None, True, obj_info)]
+    
     # USE (equivalente a USE DATABASE)
     elif re.match(r"^USE\s+[A-Z0-9_.\"]", stmt_clean):
         match = re.search(r"^USE\s+([A-Z0-9_.\"]+)", stmt_clean)
@@ -680,8 +738,7 @@ def _handle_execute(stmt_clean: str, current_context: Dict, proc_context: Option
 
 def _handle_call(stmt_clean: str, current_context: Dict, proc_context: Optional[str] = None) -> List[Dict[str, Any]]:
     """Handler para CALL."""
-    match = re.search(r"CALL\s+PROCEDURE\s+([A-Z0-9_.\"]+)(?=\s*;|\s*$)", stmt_clean)
-    print(stmt_clean)
+    match = re.search(r"CALL\s+PROCEDURE\s+([A-Z0-9_.\"]+)\s*\(?", stmt_clean)
     obj_name = match.group(1) if match else None
     obj_info = parse_object_name(obj_name) if obj_name else None
     
@@ -712,6 +769,7 @@ STATEMENT_HANDLERS = [
 # funcion principal para analizar todo el script 
 def analizar_sql(path_sql: str, template_vars: Dict[str, str] = None):
     sql_text = Path(path_sql).read_text()
+    sql_text = re.sub(r'/\*.*?\*/', '', sql_text, flags=re.DOTALL)
     resolved_sql, all_detected_vars = resolve_template_variables(sql_text, template_vars)
     
     statements = sqlparse.split(resolved_sql)
