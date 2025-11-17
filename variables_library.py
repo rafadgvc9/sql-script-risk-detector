@@ -1,0 +1,95 @@
+RIESGO = {
+    # DDL TABLAS 
+    "CREATE_TABLE": "BAJA",                 
+    "DROP_TABLE": ("ALTA", "MEDIA"),                   
+    "CREATE_OR_REPLACE_TABLE": ("ALTA", "MEDIA"),      
+    "CREATE_OR_ALTER_TABLE": ("MEDIA", "MEDIA"),       
+    "UNDROP_TABLE": "BAJA",
+    "TRUNCATE_TABLE": ("ALTA", "MEDIA"),
+    "ALTER_TABLE_NOT_COLUMNS": ("ALTA", "MEDIA"),     
+
+    # DML
+    "INSERT_VALUES": ("MEDIA", "MEDIA"),                      
+    "DELETE_VALUES": ("ALTA", "MEDIA"),                       
+    "MERGE_VALUES": ("MEDIA", "MEDIA"),                       
+
+    # DATABASE
+    "CREATE_DATABASE": "BAJA", 
+    "CREATE_OR_REPLACE_DATABASE": "ALTA", 
+    "CREATE_OR_ALTER_DATABASE": "MEDIA", 
+    "ALTER_DATABASE": "MEDIA",             
+    "DROP_DATABASE": "ALTA",  
+    "UNDROP_DATABASE": "BAJA", 
+
+    # SCHEMA
+    "CREATE_SCHEMA": "BAJA", 
+    "CREATE_OR_REPLACE_SCHEMA": "ALTA", 
+    "CREATE_OR_ALTER_SCHEMA": "MEDIA", 
+    "ALTER_SCHEMA": "MEDIA",               
+    "DROP_SCHEMA": "ALTA",  
+    "UNDROP_SCHEMA": "BAJA", 
+
+    # WAREHOUSE
+    "CREATE_WAREHOUSE": "BAJA", 
+    "CREATE_OR_REPLACE_WAREHOUSE": ("ALTA", "MEDIA"),
+    "ALTER_WAREHOUSE": "ALTA",
+    "CREATE_OR_ALTER_WAREHOUSE": ("ALTA", "MEDIA"),
+    "DROP_WAREHOUSE": "ALTA",
+    "USE_WAREHOUSE": ("ALTA", "BAJA"),
+
+    # SHARE
+    "CREATE_SHARE": "BAJA", 
+    "ALTER_SHARE": "MEDIA", 
+    "DROP_SHARE": "ALTA",  
+
+    # VIEW
+    "CREATE_VIEW": "BAJA",
+    "CREATE_OR_ALTER_VIEW": ("MEDIA", "MEDIA"),        
+    "ALTER_VIEW": ("MEDIA", "MEDIA"),                  
+    "CREATE_OR_REPLACE_VIEW": ("ALTA", "MEDIA"),
+    "DROP_VIEW": ("ALTA", "ALTA"), 
+
+    # TAG
+    "CREATE_TAG": "BAJA",                 
+    "DROP_TAG": "ALTA",                   
+    "CREATE_OR_REPLACE_TAG": "ALTA",      
+    "CREATE_OR_ALTER_TAG": "MEDIA",       
+    "UNDROP_TAG": "BAJA",
+    "ALTER_TAG": "ALTA",                   
+
+    # ALTER TABLE ALTER COLUMN
+    "ALTER_TABLE_ADD_COLUMN": "MEDIA",
+    "ALTER_TABLE_DROP_COLUMN": "ALTA",      
+    "ALTER_TABLE_MODIFY_COLUMN_TYPE": "ALTA", 
+    
+    # PRIVILEGE & POLICY
+    "GRANT_PRIVILEGE": "ALTA",
+    "REVOKE_PRIVILEGE": "ALTA",
+    "CREATE_ACCESS_POLICY": "ALTA",
+    "ALTER_ACCESS_POLICY": "ALTA",
+    "DROP_ACCESS_POLICY": "ALTA",
+
+    # CONTEXT STATEMENTS
+    "USE_DATABASE": "BAJA",
+    "USE_SCHEMA": "BAJA",
+
+    # PROCEDURE
+    "CREATE_PROCEDURE": "BAJA",
+    "DROP_PROCEDURE": "ALTA",
+    "ALTER_PROCEDURE": "MEDIA",
+    "CREATE_OR_REPLACE_PROCEDURE": ("ALTA", "MEDIA"),
+    "CALL_PROCEDURE" : "ALTA",
+
+    # TASK
+    "CREATE_TASK": "BAJA",
+    "DROP_TASK": "ALTA",
+    "ALTER_TASK": "MEDIA",
+    "EXECUTE_TASK": "ALTA",
+    "CREATE_OR_REPLACE_TASK": ("ALTA", "MEDIA"),
+
+    # RESOURCE MONITOR
+    "CREATE_RESOURCE_MONITOR": "BAJA",
+    "DROP_RESOURCE_MONITOR": "ALTA",
+    "ALTER_RESOURCE_MONITOR": "MEDIA",
+    "CREATE_OR_REPLACE_RESOURCE_MONITOR": ("ALTA", "MEDIA"),
+}

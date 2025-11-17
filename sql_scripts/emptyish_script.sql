@@ -1,4 +1,4 @@
-USE DATABASE db_eximple;
+USE DATABASE DB_SIL_{{ env }};
 USE SCHEMA db_exemple.gold;
 USE WAREHOUSE db_exemple.wh_bi;
 CREATE DATABASE db_tmp;
